@@ -1,0 +1,27 @@
+# Development Dockerfile for Django backend
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+
+# Create directories
+RUN mkdir -p /app/static /app/media /app/logs
+
+# Expose port
+EXPOSE 8000
+
+# Default command
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
