@@ -163,9 +163,7 @@ MEDIA_ROOT = BASE_DIR / 'media'  # Directory for media files
 
 AUTH_USER_MODEL = 'userauths.User'
 
-MAILGUN_API_KEY = env("MAILGUN_API_KEY", default="")
-MAILERSEND_API_TOKEN = env("MAILERSEND_API_TOKEN", default="")  # MAILERSEND_API_TOKEN=9-320034750834758934758347
-MAILGUN_SENDER_DOMAIN = env("MAILGUN_SENDER_DOMAIN", default="")  # MAILGUN_SENDER_DOMAIN=mg.example.com
+RESEND_API_KEY = env("RESEND_API_KEY", default="")
 
 STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", default="")  # STRIPE_SECRET_KEY=sk_test_4eC39HqLyjWDarjtT1zdp7dc
 PAYPAL_CLIENT_ID = env("PAYPAL_CLIENT_ID", default="") # PAYPAL_CLIENT_ID=9-320034750834758934758347
@@ -173,14 +171,12 @@ PAYPAL_SECRET_ID = env("PAYPAL_SECRET_ID", default="") # PAYPAL_SECRET_ID=9-3200
 
 FRONTEND_SITE_URL = env("FRONTEND_SITE_URL", default="http://localhost:3000")  # URL of the frontend application
 
-
 ANYMAIL = {
-    "MAILGUN_API_KEY": env("MAILGUN_API_KEY", default=""),
-    "MAILGUN_SENDER_DOMAIN": env("MAILGUN_SENDER_DOMAIN", default=""),
+    "RESEND_API_KEY": env("RESEND_API_KEY", default=""),
 }
 
 FROM_EMAIL = env("FROM_EMAIL", default="")
-EMAIL_BACKEND = 'anymail.backends.mailgun.EmailBackend'
+EMAIL_BACKEND = 'anymail.backends.resend.EmailBackend'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
