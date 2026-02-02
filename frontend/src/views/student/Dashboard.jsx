@@ -27,7 +27,13 @@ function Dashboard() {
       .get(`student/course-list/${UserData()?.user_id}/`)
       .then((res) => {
         console.log(res.data);
-        setCourses(res.data);
+        const courseData = res.data?.results || res.data || [];
+        setCourses(Array.isArray(courseData) ? courseData : []);
+        setFetching(false);
+      })
+      .catch((err) => {
+        console.log(err);
+        setCourses([]);
         setFetching(false);
       });
   };

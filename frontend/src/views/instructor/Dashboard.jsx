@@ -25,7 +25,12 @@ function Dashboard() {
       .get(`teacher/course-lists/${UserData()?.teacher_id}/`)
       .then((res) => {
         console.log(res.data);
-        setCourses(res.data);
+        const courseData = res.data?.results || res.data || [];
+        setCourses(Array.isArray(courseData) ? courseData : []);
+      })
+      .catch((err) => {
+        console.log(err);
+        setCourses([]);
       });
   };
 

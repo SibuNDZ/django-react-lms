@@ -25,14 +25,15 @@ function Search() {
   const fetchCourse = async () => {
     setIsLoading(true);
     try {
-      await useAxios()
-        .get(`/course/course-list/`)
-        .then((res) => {
-          setCourses(res.data);
-          setIsLoading(false);
-        });
+      const res = await useAxios().get(`/course/course-list/`);
+      // Handle both paginated response and plain array
+      const courseData = res.data?.results || res.data || [];
+      setCourses(Array.isArray(courseData) ? courseData : []);
     } catch (error) {
       console.log(error);
+      setCourses([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
