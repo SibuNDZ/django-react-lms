@@ -29,25 +29,24 @@ RUN npm run build
 # Stage 2: Production stage with nginx
 FROM nginx:alpine as production
 
-# Copy custom nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Install envsubst (part of gettext)
+RUN apk add --no-cache gettext
+
+# Copy nginx config as template
+COPY nginx.conf /etc/nginx/templates/default.conf.template
 
 # Copy built assets from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Create script for runtime environment variable injection
-RUN echo '#!/bin/sh' > /docker-entrypoint.d/40-envsubst-config.sh && \
-    echo 'if [ -f /usr/share/nginx/html/env-config.js ]; then' >> /docker-entrypoint.d/40-envsubst-config.sh && \
-    echo '  envsubst < /usr/share/nginx/html/env-config.js.template > /usr/share/nginx/html/env-config.js' >> /docker-entrypoint.d/40-envsubst-config.sh && \
-    echo 'fi' >> /docker-entrypoint.d/40-envsubst-config.sh && \
-    chmod +x /docker-entrypoint.d/40-envsubst-config.sh
+# Set default PORT
+ENV PORT=80
 
-# Expose port
+# Expose port (Railway will override with PORT env var)
 EXPOSE 80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT:-80}/ || exit 1
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Start nginx with envsubst to replace PORT variable
+CMD ["/bin/sh", "-c", "envsubst '${PORT}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
