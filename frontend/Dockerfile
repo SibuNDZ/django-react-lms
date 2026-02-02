@@ -29,11 +29,8 @@ RUN npm run build
 # Stage 2: Production stage with nginx
 FROM nginx:alpine as production
 
-# Install envsubst (part of gettext)
-RUN apk add --no-cache gettext
-
-# Copy nginx config as template
-COPY nginx.conf /etc/nginx/templates/default.conf.template
+# Copy nginx config
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built assets from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
@@ -48,5 +45,5 @@ EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT:-80}/ || exit 1
 
-# Start nginx with envsubst to replace PORT variable
-CMD ["/bin/sh", "-c", "envsubst '${PORT}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
+# Start nginx with sed to replace PORT_PLACEHOLDER with actual PORT value
+CMD ["/bin/sh", "-c", "sed -i \"s/PORT_PLACEHOLDER/$PORT/g\" /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
