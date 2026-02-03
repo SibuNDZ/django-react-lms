@@ -161,12 +161,32 @@ function Index() {
               )}
             </div>
             <div className="col-lg-6 d-none d-lg-block text-center hero-media">
-              <img
-                src="https://s.udemycdn.com/home/non-logged-in/hero/lohp-category-business-v2.jpg"
-                alt="Learning"
-                className="img-fluid rounded-3"
-                style={{ maxHeight: '350px', objectFit: 'cover' }}
-              />
+              <svg viewBox="0 0 500 400" className="img-fluid" style={{ maxHeight: '350px' }}>
+                <defs>
+                  <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style={{ stopColor: '#5624d0', stopOpacity: 0.8 }} />
+                    <stop offset="100%" style={{ stopColor: '#a855f7', stopOpacity: 0.6 }} />
+                  </linearGradient>
+                </defs>
+                <rect x="40" y="30" width="200" height="150" rx="12" fill="white" opacity="0.15" />
+                <rect x="55" y="50" width="170" height="90" rx="8" fill="white" opacity="0.1" />
+                <polygon points="120,70 120,120 155,95" fill="white" opacity="0.9" />
+                <rect x="55" y="150" width="80" height="8" rx="4" fill="white" opacity="0.3" />
+                <rect x="55" y="165" width="120" height="6" rx="3" fill="white" opacity="0.2" />
+                <rect x="260" y="80" width="200" height="150" rx="12" fill="white" opacity="0.15" />
+                <rect x="275" y="100" width="170" height="90" rx="8" fill="white" opacity="0.1" />
+                <circle cx="360" cy="145" r="25" fill="none" stroke="white" strokeWidth="3" opacity="0.7" />
+                <path d="M355 135 L355 155 M345 145 L365 145" stroke="white" strokeWidth="3" opacity="0.7" />
+                <rect x="275" y="200" width="100" height="8" rx="4" fill="white" opacity="0.3" />
+                <rect x="275" y="215" width="140" height="6" rx="3" fill="white" opacity="0.2" />
+                <rect x="150" y="220" width="200" height="150" rx="12" fill="white" opacity="0.15" />
+                <rect x="165" y="240" width="170" height="90" rx="8" fill="white" opacity="0.1" />
+                <text x="220" y="290" fill="white" opacity="0.8" fontSize="28" fontFamily="monospace">&lt;/&gt;</text>
+                <rect x="165" y="340" width="90" height="8" rx="4" fill="white" opacity="0.3" />
+                <rect x="165" y="355" width="130" height="6" rx="3" fill="white" opacity="0.2" />
+                <circle cx="450" cy="50" r="30" fill="white" opacity="0.08" />
+                <circle cx="30" cy="300" r="20" fill="white" opacity="0.06" />
+              </svg>
             </div>
           </div>
         </div>
