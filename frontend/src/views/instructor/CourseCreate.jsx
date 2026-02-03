@@ -284,6 +284,10 @@ function CourseCreate() {
                           name="file"
                           onChange={handleCourseIntroVideoChange}
                         />
+                        <div className="form-text">
+                          Upload an MP4 preview (max 2GB). Videos are encrypted at rest and streamed via signed URLs.
+                          Downloads are disabled for learners.
+                        </div>
                       </div>
                       <div className="mb-3">
                         <label htmlFor="courseTitle" className="form-label">
@@ -454,6 +458,9 @@ function CourseCreate() {
                                       )
                                     }
                                   />
+                                  <small className="text-muted">
+                                    Keep lessons under 20 minutes for higher completion rates.
+                                  </small>
                                 </div>
                                 <div className="col-lg-4">
                                   <label htmlFor={`checkbox${1}`}>

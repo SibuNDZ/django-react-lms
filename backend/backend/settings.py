@@ -156,7 +156,7 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),  # Custom static files directory
 ]
 
-STATIC_ROOT = BASE_DIR / 'templates'  # Directory where static files will be collected
+STATIC_ROOT = BASE_DIR / 'staticfiles'  # Directory where static files will be collected
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'  # Directory for media files
@@ -166,8 +166,11 @@ AUTH_USER_MODEL = 'userauths.User'
 RESEND_API_KEY = env("RESEND_API_KEY", default="")
 
 STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", default="")  # STRIPE_SECRET_KEY=sk_test_4eC39HqLyjWDarjtT1zdp7dc
+STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", default="")
 PAYPAL_CLIENT_ID = env("PAYPAL_CLIENT_ID", default="") # PAYPAL_CLIENT_ID=9-320034750834758934758347
 PAYPAL_SECRET_ID = env("PAYPAL_SECRET_ID", default="") # PAYPAL_SECRET_ID=9-320034750834758934758347
+PAYPAL_ENV = env("PAYPAL_ENV", default="sandbox")  # sandbox or live
+PAYPAL_BASE_URL = env("PAYPAL_BASE_URL", default="https://api-m.sandbox.paypal.com" if PAYPAL_ENV == "sandbox" else "https://api-m.paypal.com")
 
 FRONTEND_SITE_URL = env("FRONTEND_SITE_URL", default="http://localhost:3000")  # URL of the frontend application
 
@@ -268,6 +271,20 @@ if DEBUG:
 else:
     CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
     CORS_ALLOW_CREDENTIALS = True
+
+    CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+    SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
+    DJANGO_BEHIND_PROXY = env.bool("DJANGOBehindProxy", default=True)
+    if DJANGO_BEHIND_PROXY:
+        SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+        USE_X_FORWARDED_HOST = True
+    SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=True)
+    CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=True)
+    SECURE_HSTS_SECONDS = env.int("SECURE_HSTS_SECONDS", default=31536000)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True)
+    SECURE_HSTS_PRELOAD = env.bool("SECURE_HSTS_PRELOAD", default=True)
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
 # REST Framework settings with rate limiting
 REST_FRAMEWORK = {
@@ -386,7 +403,10 @@ if USE_S3:
     AWS_S3_OBJECT_PARAMETERS = {
         'CacheControl': 'max-age=86400',
     }
-    AWS_DEFAULT_ACL = 'public-read'
+    AWS_DEFAULT_ACL = None
+    AWS_QUERYSTRING_AUTH = True
+    AWS_QUERYSTRING_EXPIRE = env.int("AWS_PRESIGNED_URL_TTL", default=300)
+    AWS_S3_SIGNATURE_VERSION = "s3v4"
     AWS_LOCATION = 'media'
 
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'

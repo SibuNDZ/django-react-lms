@@ -1,6 +1,8 @@
 from django.contrib.auth.password_validation import validate_password
 
 from rest_framework import serializers
+from django.conf import settings
+from core.storage import build_presigned_url
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from userauths.models import Profile, User
@@ -91,13 +93,24 @@ class InstructorSerializer(serializers.ModelSerializer):
 
 
 class LessonResourceSerializer(serializers.ModelSerializer):
+    file = serializers.SerializerMethodField()
+
     class Meta:
         model = LessonResource
         fields = ['id', 'resource_id', 'title', 'file', 'file_type', 'created_at']
 
+    def get_file(self, obj):
+        if not obj.file:
+            return None
+        if settings.USE_S3:
+            return build_presigned_url(obj.file.name)
+        request = self.context.get("request")
+        return request.build_absolute_uri(obj.file.url) if request else obj.file.url
+
 
 class LessonSerializer(serializers.ModelSerializer):
     resources = LessonResourceSerializer(many=True, read_only=True)
+    video_file = serializers.SerializerMethodField()
 
     class Meta:
         model = Lesson
@@ -106,6 +119,14 @@ class LessonSerializer(serializers.ModelSerializer):
             'content', 'video_url', 'video_file', 'duration', 'order',
             'is_free_preview', 'is_published', 'resources'
         ]
+
+    def get_video_file(self, obj):
+        if not obj.video_file:
+            return None
+        if settings.USE_S3:
+            return build_presigned_url(obj.video_file.name)
+        request = self.context.get("request")
+        return request.build_absolute_uri(obj.video_file.url) if request else obj.video_file.url
 
 
 class LessonListSerializer(serializers.ModelSerializer):

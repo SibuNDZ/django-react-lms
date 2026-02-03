@@ -19,17 +19,37 @@ function StudentCourseLectureDetail() {
                         {/* Sidebar Here */}
                         <Sidebar />
                         <div className="col-lg-9 col-md-8 col-12">
-                            <section className="bg-blue py-7">
-                                <div className="container">
-                                    <ReactPlayer url='https://www.youtube.com/watch?v=LXb3EKWsInQ' width={"100%"} height={600} />
+                            <div className="video-shell mb-4">
+                                <div className="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <span className="secure-badge">
+                                            <i className="fas fa-lock"></i> Secure playback
+                                        </span>
+                                        <h3 className="text-white mt-2 mb-1">Executive AI Foundations</h3>
+                                        <div className="video-meta">
+                                            <p>Module 2 · Lesson 4 · Building AI workflows</p>
+                                        </div>
+                                    </div>
+                                    <div className="secure-inline">
+                                        <i className="fas fa-fingerprint"></i>
+                                        Watermarked for your account
+                                    </div>
                                 </div>
-                            </section>
-                            <section className="mt-4">
-                                <div className="container">
-                                    <div className="row">
-                                        {/* Main content START */}
-                                        <div className="col-12">
-                                            <div className="card shadow rounded-2 p-0 mt-n5">
+                                <div className="video-frame">
+                                    <ReactPlayer url='https://www.youtube.com/watch?v=LXb3EKWsInQ' width={"100%"} height={520} controls />
+                                    <div className="video-watermark">DSN Learning · Protected</div>
+                                </div>
+                                <div className="player-tools">
+                                    <span className="tool-pill"><i className="fas fa-closed-captioning"></i> Captions</span>
+                                    <span className="tool-pill"><i className="fas fa-tachometer-alt"></i> 1.25x Speed</span>
+                                    <span className="tool-pill"><i className="fas fa-download"></i> Downloads disabled</span>
+                                    <span className="tool-pill"><i className="fas fa-shield-alt"></i> Device bound</span>
+                                </div>
+                            </div>
+                            <div className="row g-4">
+                                {/* Main content START */}
+                                <div className="col-lg-8">
+                                    <div className="card shadow rounded-2 p-0 course-player-card">
                                                 {/* Tabs START */}
                                                 <div className="card-header border-bottom px-4 pt-3 pb-0">
                                                     <ul
@@ -1351,11 +1371,57 @@ function StudentCourseLectureDetail() {
                                                         </div>
                                                     </div>
                                                 </div>
+                                    </div>
+                                </div>
+                                <div className="col-lg-4">
+                                    <div className="lesson-panel mb-3">
+                                        <h5>Up next</h5>
+                                        <div className="lesson-item">
+                                            <div className="lesson-left">
+                                                <div className="lesson-index">05</div>
+                                                <div>
+                                                    <div className="lesson-title">Risk review & guardrails</div>
+                                                    <div className="lesson-time">12m 42s</div>
+                                                </div>
                                             </div>
+                                            <i className="fas fa-play text-muted"></i>
+                                        </div>
+                                        <div className="lesson-item">
+                                            <div className="lesson-left">
+                                                <div className="lesson-index">06</div>
+                                                <div>
+                                                    <div className="lesson-title">Operationalizing AI</div>
+                                                    <div className="lesson-time">18m 05s</div>
+                                                </div>
+                                            </div>
+                                            <i className="fas fa-lock text-muted"></i>
+                                        </div>
+                                        <div className="lesson-item">
+                                            <div className="lesson-left">
+                                                <div className="lesson-index">07</div>
+                                                <div>
+                                                    <div className="lesson-title">Measuring outcomes</div>
+                                                    <div className="lesson-time">9m 30s</div>
+                                                </div>
+                                            </div>
+                                            <i className="fas fa-play text-muted"></i>
+                                        </div>
+                                    </div>
+                                    <div className="security-panel">
+                                        <h5>Security & compliance</h5>
+                                        <p>Uploads are encrypted at rest and streamed via signed URLs.</p>
+                                        <ul>
+                                            <li>Device-bound playback</li>
+                                            <li>Viewer watermarking</li>
+                                            <li>Audit-ready access logs</li>
+                                        </ul>
+                                        <div className="mt-3 secure-inline">
+                                            <i className="fas fa-shield-alt"></i>
+                                            Compliant training mode enabled
                                         </div>
                                     </div>
                                 </div>
-                            </section>
+                            </div>
                         </div>
                     </div>
                 </div>

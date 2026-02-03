@@ -94,12 +94,18 @@ function Index() {
 
   // Tech categories data
   const categories = [
-    { icon: "fas fa-robot", title: "Prompt Engineering", count: "50+ Courses", color: "#5624d0", search: "prompting" },
-    { icon: "fas fa-brain", title: "Agentic AI", count: "30+ Courses", color: "#a435f0", search: "agentic" },
-    { icon: "fas fa-layer-group", title: "Full Stack Dev", count: "100+ Courses", color: "#1e6f5c", search: "fullstack" },
+    { icon: "fas fa-robot", title: "Prompt Engineering", count: "50+ Courses", color: "#ff7a59", search: "prompting" },
+    { icon: "fas fa-brain", title: "Agentic AI", count: "30+ Courses", color: "#0f3d38", search: "agentic" },
+    { icon: "fas fa-shield-alt", title: "Cybersecurity", count: "70+ Courses", color: "#1f2937", search: "security" },
+    { icon: "fas fa-cloud", title: "Cloud & DevOps", count: "65+ Courses", color: "#2563eb", search: "cloud" },
+    { icon: "fas fa-database", title: "Data Analytics", count: "90+ Courses", color: "#0ea5e9", search: "analytics" },
+    { icon: "fas fa-layer-group", title: "Full Stack Dev", count: "100+ Courses", color: "#10b981", search: "fullstack" },
     { icon: "fab fa-python", title: "Python", count: "80+ Courses", color: "#3776ab", search: "python" },
     { icon: "fab fa-react", title: "React", count: "60+ Courses", color: "#61dafb", search: "react" },
-    { icon: "fab fa-node-js", title: "Node.js", count: "40+ Courses", color: "#339933", search: "nodejs" },
+    { icon: "fas fa-briefcase", title: "Product & PM", count: "45+ Courses", color: "#7c3aed", search: "product" },
+    { icon: "fas fa-users", title: "Leadership", count: "40+ Courses", color: "#f59e0b", search: "leadership" },
+    { icon: "fas fa-scale-balanced", title: "Compliance", count: "35+ Courses", color: "#475569", search: "compliance" },
+    { icon: "fas fa-pen-ruler", title: "UX & Design", count: "55+ Courses", color: "#ec4899", search: "ux" },
   ];
 
   return (
@@ -110,7 +116,7 @@ function Index() {
       <section className="hero-section">
         <div className="container">
           <div className="row align-items-center">
-            <div className="col-lg-6">
+            <div className="col-lg-6 hero-card">
               {isLoggedIn() && user ? (
                 <div className="welcome-banner" style={{ background: 'linear-gradient(135deg, #5624d0 0%, #a435f0 100%)' }}>
                   <h2>Welcome back, {user?.full_name?.split(' ')[0] || user?.username}!</h2>
@@ -121,29 +127,83 @@ function Index() {
                 </div>
               ) : (
                 <>
-                  <h1>Master the Future of Tech</h1>
+                  <span className="hero-pill">
+                    <i className="fas fa-lock"></i> Enterprise-grade learning platform
+                  </span>
+                  <h1>Upskill teams with secure, modern learning</h1>
                   <p>
-                    Learn Prompt Engineering, Agentic AI, and Full Stack Development from industry experts.
-                    Start your journey to becoming a tech leader today.
+                    Combine AI, cloud, cybersecurity, and leadership training in one platform.
+                    Designed for corporate subscriptions with secure video delivery and measurable outcomes.
                   </p>
                   <div className="d-flex gap-3 flex-wrap">
                     <Link to="/register/" className="btn btn-light btn-lg fw-bold px-4">
                       Get Started Free
                     </Link>
-                    <Link to="/search/?search=ai" className="btn btn-outline-light btn-lg px-4">
+                    <Link to="/search/?search=enterprise" className="btn btn-outline-light btn-lg px-4">
                       Explore Courses
                     </Link>
+                  </div>
+                  <div className="hero-highlights">
+                    <div className="hero-highlight">
+                      <span>Security</span>
+                      <strong>Signed playback</strong>
+                    </div>
+                    <div className="hero-highlight">
+                      <span>Analytics</span>
+                      <strong>Team insights</strong>
+                    </div>
+                    <div className="hero-highlight">
+                      <span>Scale</span>
+                      <strong>Global cohorts</strong>
+                    </div>
                   </div>
                 </>
               )}
             </div>
-            <div className="col-lg-6 d-none d-lg-block text-center">
+            <div className="col-lg-6 d-none d-lg-block text-center hero-media">
               <img
                 src="https://s.udemycdn.com/home/non-logged-in/hero/lohp-category-business-v2.jpg"
                 alt="Learning"
                 className="img-fluid rounded-3"
                 style={{ maxHeight: '350px', objectFit: 'cover' }}
               />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="enterprise-strip">
+        <div className="container">
+          <div className="row g-3 align-items-center">
+            <div className="col-md-4">
+              <div className="stat-item text-start">
+                <div className="stat-number">Enterprise ready</div>
+                <div className="stat-label text-white-50">
+                  Secure streaming, role-based access, audit logs
+                </div>
+              </div>
+            </div>
+            <div className="col-md-8">
+              <div className="row g-3">
+                <div className="col-md-4">
+                  <div className="enterprise-card">
+                    <h6>Secure video delivery</h6>
+                    <p>Signed URLs, watermarking, playback controls.</p>
+                  </div>
+                </div>
+                <div className="col-md-4">
+                  <div className="enterprise-card">
+                    <h6>Insights that matter</h6>
+                    <p>Completion, skill gaps, cohort performance.</p>
+                  </div>
+                </div>
+                <div className="col-md-4">
+                  <div className="enterprise-card">
+                    <h6>Corporate compliance</h6>
+                    <p>Policy training, exportable certifications.</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -201,7 +261,7 @@ function Index() {
           </div>
           <div className="row g-4 mt-3">
             {categories.map((cat, index) => (
-              <div className="col-6 col-md-4 col-lg-2" key={index}>
+              <div className="col-6 col-md-4 col-lg-3 col-xl-2" key={index}>
                 <Link to={`/search/?search=${cat.search}`} className="text-decoration-none">
                   <div className="category-card h-100">
                     <div className="icon" style={{ color: cat.color }}>
@@ -362,7 +422,7 @@ function Index() {
           </div>
           <div className="row">
             <div className="col-md-4 mb-4">
-              <h5 className="mb-3">Artificial Intelligence</h5>
+              <h5 className="mb-3">AI & Automation</h5>
               <ul className="list-unstyled">
                 <li className="mb-2">
                   <Link to="/search/?search=chatgpt" className="text-primary fw-bold">ChatGPT</Link>
@@ -373,42 +433,42 @@ function Index() {
                   <span className="text-muted ms-2">1.8M+ students</span>
                 </li>
                 <li className="mb-2">
-                  <Link to="/search/?search=langchain" className="text-primary fw-bold">LangChain</Link>
-                  <span className="text-muted ms-2">500K+ students</span>
+                  <Link to="/search/?search=agentic" className="text-primary fw-bold">Agentic AI</Link>
+                  <span className="text-muted ms-2">720K+ students</span>
                 </li>
               </ul>
             </div>
             <div className="col-md-4 mb-4">
-              <h5 className="mb-3">Web Development</h5>
+              <h5 className="mb-3">Cloud & Security</h5>
               <ul className="list-unstyled">
                 <li className="mb-2">
-                  <Link to="/search/?search=react" className="text-primary fw-bold">React</Link>
-                  <span className="text-muted ms-2">4.5M+ students</span>
+                  <Link to="/search/?search=cloud" className="text-primary fw-bold">Cloud Architecture</Link>
+                  <span className="text-muted ms-2">1.9M+ students</span>
                 </li>
                 <li className="mb-2">
-                  <Link to="/search/?search=javascript" className="text-primary fw-bold">JavaScript</Link>
-                  <span className="text-muted ms-2">8M+ students</span>
+                  <Link to="/search/?search=devops" className="text-primary fw-bold">DevOps</Link>
+                  <span className="text-muted ms-2">2.2M+ students</span>
                 </li>
                 <li className="mb-2">
-                  <Link to="/search/?search=nextjs" className="text-primary fw-bold">Next.js</Link>
-                  <span className="text-muted ms-2">1.2M+ students</span>
+                  <Link to="/search/?search=security" className="text-primary fw-bold">Security Operations</Link>
+                  <span className="text-muted ms-2">980K+ students</span>
                 </li>
               </ul>
             </div>
             <div className="col-md-4 mb-4">
-              <h5 className="mb-3">Backend Development</h5>
+              <h5 className="mb-3">Leadership & Product</h5>
               <ul className="list-unstyled">
                 <li className="mb-2">
-                  <Link to="/search/?search=python" className="text-primary fw-bold">Python</Link>
-                  <span className="text-muted ms-2">6M+ students</span>
+                  <Link to="/search/?search=leadership" className="text-primary fw-bold">Leadership</Link>
+                  <span className="text-muted ms-2">1.1M+ students</span>
                 </li>
                 <li className="mb-2">
-                  <Link to="/search/?search=django" className="text-primary fw-bold">Django</Link>
-                  <span className="text-muted ms-2">2M+ students</span>
+                  <Link to="/search/?search=product" className="text-primary fw-bold">Product Strategy</Link>
+                  <span className="text-muted ms-2">860K+ students</span>
                 </li>
                 <li className="mb-2">
-                  <Link to="/search/?search=nodejs" className="text-primary fw-bold">Node.js</Link>
-                  <span className="text-muted ms-2">3M+ students</span>
+                  <Link to="/search/?search=compliance" className="text-primary fw-bold">Compliance & Risk</Link>
+                  <span className="text-muted ms-2">640K+ students</span>
                 </li>
               </ul>
             </div>

@@ -889,14 +889,33 @@ function CourseDetail() {
         <Modal.Header closeButton>
           <Modal.Title>Lesson: {variantItem?.title}</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          <ReactPlayer
-            url={variantItem?.file}
-            controls
-            width={"100%"}
-            height={"100%"}
-          />
-        </Modal.Body>
+      <Modal.Body>
+          <div className="video-shell">
+            <div className="d-flex flex-wrap justify-content-between align-items-center mb-3">
+              <span className="secure-badge">
+                <i className="fas fa-lock"></i> Secure playback
+              </span>
+              <div className="secure-inline">
+                <i className="fas fa-fingerprint"></i>
+                Watermarked for your account
+              </div>
+            </div>
+            <div className="video-frame">
+              <ReactPlayer
+                url={variantItem?.file}
+                controls
+                width={"100%"}
+                height={480}
+              />
+              <div className="video-watermark">DSN Learning · Protected</div>
+            </div>
+            <div className="player-tools">
+              <span className="tool-pill"><i className="fas fa-closed-captioning"></i> Captions</span>
+              <span className="tool-pill"><i className="fas fa-tachometer-alt"></i> Speed controls</span>
+              <span className="tool-pill"><i className="fas fa-download"></i> Downloads disabled</span>
+            </div>
+          </div>
+      </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={handleClose}>
             Close

@@ -11,7 +11,8 @@ This module contains all the API endpoints for:
 """
 
 from django.shortcuts import get_object_or_404
-from django.db.models import Q, Avg, Sum
+from django.db import transaction
+from django.db.models import Q, Avg, Sum, F
 from django.utils import timezone
 from django.conf import settings
 
@@ -24,6 +25,8 @@ from rest_framework.pagination import PageNumberPagination
 import stripe
 import logging
 import shortuuid
+import requests
+from decimal import Decimal
 
 from .models import (
     Category, Course, Section, Lesson, LessonResource,
@@ -47,6 +50,99 @@ logger = logging.getLogger(__name__)
 
 # Initialize Stripe
 stripe.api_key = getattr(settings, 'STRIPE_SECRET_KEY', '')
+
+
+def create_enrollments_for_order(order):
+    """Create enrollments for all courses in the order (idempotent)."""
+    for item in order.items.select_related("course"):
+        enrollment, created = Enrollment.objects.get_or_create(
+            student=order.student,
+            course=item.course,
+            defaults={'status': 'active'}
+        )
+        if created:
+            Course.objects.filter(pk=item.course_id).update(
+                total_students=F("total_students") + 1
+            )
+
+
+def finalize_order(order, payment_method, payment_id=None):
+    """Mark order completed and provision access."""
+    with transaction.atomic():
+        if order.status == 'completed':
+            return False
+        order.status = 'completed'
+        order.payment_method = payment_method
+        if payment_id:
+            order.payment_id = payment_id
+        order.completed_at = timezone.now()
+        order.save(update_fields=['status', 'payment_method', 'payment_id', 'completed_at'])
+
+        create_enrollments_for_order(order)
+        Cart.objects.filter(user=order.student).delete()
+
+        Notification.objects.create(
+            user=order.student,
+            notification_type='order',
+            title='Order Completed',
+            message=f'Your order #{order.order_id} has been completed. Enjoy your courses!',
+            order=order
+        )
+    return True
+
+
+def get_paypal_access_token():
+    base_url = getattr(settings, "PAYPAL_BASE_URL", "")
+    client_id = getattr(settings, "PAYPAL_CLIENT_ID", "")
+    secret_id = getattr(settings, "PAYPAL_SECRET_ID", "")
+    if not base_url or not client_id or not secret_id:
+        return None
+    response = requests.post(
+        f"{base_url}/v1/oauth2/token",
+        auth=(client_id, secret_id),
+        data={"grant_type": "client_credentials"},
+        timeout=15,
+    )
+    response.raise_for_status()
+    return response.json().get("access_token")
+
+
+def verify_paypal_order(paypal_order_id, expected_total, currency="USD"):
+    try:
+        token = get_paypal_access_token()
+        if not token:
+            return False, "Missing PayPal credentials"
+
+        base_url = getattr(settings, "PAYPAL_BASE_URL", "")
+        response = requests.get(
+            f"{base_url}/v2/checkout/orders/{paypal_order_id}",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=15,
+        )
+        if response.status_code != 200:
+            return False, f"PayPal verification failed ({response.status_code})"
+
+        data = response.json()
+        if data.get("status") != "COMPLETED":
+            return False, "PayPal order not completed"
+
+        purchase_units = data.get("purchase_units", [])
+        if not purchase_units:
+            return False, "PayPal order missing purchase units"
+
+        amount = purchase_units[0].get("amount", {})
+        value = Decimal(amount.get("value", "0"))
+        currency_code = amount.get("currency_code", "USD")
+
+        if currency_code.upper() != currency.upper():
+            return False, "Currency mismatch"
+        if value != Decimal(expected_total):
+            return False, "Amount mismatch"
+
+        return True, None
+    except Exception as exc:
+        logger.error("PayPal verification error: %s", exc)
+        return False, "PayPal verification error"
 
 
 # ============== Pagination ==============
@@ -537,30 +633,12 @@ class StripeCheckoutAPIView(APIView):
 
     def complete_free_order(self, order):
         """Complete order for free courses."""
-        order.status = 'completed'
-        order.payment_method = 'free'
-        order.completed_at = timezone.now()
-        order.save()
-
-        # Create enrollments
-        self.create_enrollments(order)
+        finalize_order(order, 'free')
 
         return Response({
             "message": "Order completed",
             "redirect_url": f"/payment-success/?order_id={order.order_id}"
         })
-
-    def create_enrollments(self, order):
-        """Create enrollments for all courses in the order."""
-        for item in order.items.all():
-            Enrollment.objects.get_or_create(
-                student=order.student,
-                course=item.course,
-                defaults={'status': 'active'}
-            )
-            # Update course student count
-            item.course.total_students += 1
-            item.course.save(update_fields=['total_students'])
 
 
 class PaymentSuccessAPIView(APIView):
@@ -600,37 +678,20 @@ class PaymentSuccessAPIView(APIView):
                 logger.error(f"Stripe verification error: {str(e)}")
 
         if paypal_order_id and paypal_order_id != 'null':
-            # For PayPal, accept the order_id (real verification would use PayPal SDK)
-            payment_verified = True
-            order.payment_id = paypal_order_id
-            order.payment_method = 'paypal'
+            is_valid, error_message = verify_paypal_order(
+                paypal_order_id,
+                expected_total=order.total,
+                currency="USD"
+            )
+            if is_valid:
+                payment_verified = True
+                order.payment_id = paypal_order_id
+                order.payment_method = 'paypal'
+            else:
+                logger.warning("PayPal verification failed: %s", error_message)
 
         if payment_verified:
-            order.status = 'completed'
-            order.completed_at = timezone.now()
-            order.save()
-
-            # Create enrollments
-            for item in order.items.all():
-                Enrollment.objects.get_or_create(
-                    student=order.student,
-                    course=item.course,
-                    defaults={'status': 'active'}
-                )
-                item.course.total_students += 1
-                item.course.save(update_fields=['total_students'])
-
-            # Clear cart
-            Cart.objects.filter(user=request.user).delete()
-
-            # Send notification
-            Notification.objects.create(
-                user=request.user,
-                notification_type='order',
-                title='Order Completed',
-                message=f'Your order #{order.order_id} has been completed. Enjoy your courses!',
-                order=order
-            )
+            finalize_order(order, order.payment_method, order.payment_id)
 
             logger.info(f"Payment completed for order {order_oid}")
             return Response({"message": "Payment Successfull", "order": OrderSerializer(order).data})
@@ -652,33 +713,9 @@ class PaymentSuccessAPIView(APIView):
             try:
                 session = stripe.checkout.Session.retrieve(session_id)
                 if session.payment_status == 'paid':
-                    order.status = 'completed'
                     order.payment_id = session.payment_intent
                     order.payment_method = 'stripe'
-                    order.completed_at = timezone.now()
-                    order.save()
-
-                    # Create enrollments
-                    for item in order.items.all():
-                        Enrollment.objects.get_or_create(
-                            student=order.student,
-                            course=item.course,
-                            defaults={'status': 'active'}
-                        )
-                        item.course.total_students += 1
-                        item.course.save(update_fields=['total_students'])
-
-                    # Clear cart
-                    Cart.objects.filter(user=request.user).delete()
-
-                    # Send notification
-                    Notification.objects.create(
-                        user=request.user,
-                        notification_type='order',
-                        title='Order Completed',
-                        message=f'Your order #{order.order_id} has been completed. Enjoy your courses!',
-                        order=order
-                    )
+                    finalize_order(order, 'stripe', session.payment_intent)
 
                     logger.info(f"Payment completed for order {order_oid}")
                     return Response({"message": "Payment Successfull", "order": OrderSerializer(order).data})
@@ -689,6 +726,53 @@ class PaymentSuccessAPIView(APIView):
             {"message": "Payment Failed"},
             status=status.HTTP_400_BAD_REQUEST
         )
+
+
+class StripeWebhookAPIView(APIView):
+    """
+    Stripe webhook handler.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        payload = request.body
+        sig_header = request.META.get("HTTP_STRIPE_SIGNATURE", "")
+        webhook_secret = getattr(settings, "STRIPE_WEBHOOK_SECRET", "")
+
+        if not webhook_secret:
+            return Response({"message": "Webhook secret not configured"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+        except (ValueError, stripe.error.SignatureVerificationError):
+            return Response({"message": "Invalid payload"}, status=status.HTTP_400_BAD_REQUEST)
+
+        event_type = event.get("type", "")
+        if event_type == "checkout.session.completed":
+            session = event["data"]["object"]
+            order_id = session.get("metadata", {}).get("order_id")
+            if not order_id:
+                return Response({"message": "Missing order id"}, status=status.HTTP_200_OK)
+
+            order = Order.objects.filter(order_id=order_id).first()
+            if not order:
+                return Response({"message": "Order not found"}, status=status.HTTP_200_OK)
+
+            amount_total = session.get("amount_total")
+            currency = session.get("currency", "usd")
+            expected_amount = int(Decimal(order.total) * 100)
+
+            if amount_total is not None and amount_total != expected_amount:
+                logger.warning("Stripe amount mismatch for order %s", order_id)
+                return Response({"message": "Amount mismatch"}, status=status.HTTP_400_BAD_REQUEST)
+
+            payment_intent = session.get("payment_intent")
+            order.payment_method = "stripe"
+            if payment_intent:
+                order.payment_id = payment_intent
+            finalize_order(order, "stripe", payment_intent)
+
+        return Response({"status": "ok"}, status=status.HTTP_200_OK)
 
 
 # ============== Enrollment Views ==============

@@ -54,6 +54,7 @@ urlpatterns = [
     path('order/coupon/', views.CouponApplyAPIView.as_view(), name='coupon-apply'),
     path('order/stripe-checkout/<str:order_oid>/', views.StripeCheckoutAPIView.as_view(), name='stripe-checkout'),
     path('order/payment-success/<str:order_oid>/', views.PaymentSuccessAPIView.as_view(), name='payment-success'),
+    path('order/stripe/webhook/', views.StripeWebhookAPIView.as_view(), name='stripe-webhook'),
     # Frontend compatibility alias
     path('payment/payment-sucess/', views.PaymentSuccessAPIView.as_view(), name='payment-success-compat'),
 
