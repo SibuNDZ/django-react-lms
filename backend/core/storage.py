@@ -13,7 +13,13 @@ def _s3_client():
     return boto3.client(
         "s3",
         region_name=getattr(settings, "AWS_S3_REGION_NAME", None),
-        config=Config(signature_version=getattr(settings, "AWS_S3_SIGNATURE_VERSION", "s3v4")),
+        endpoint_url=getattr(settings, "AWS_S3_ENDPOINT_URL", None),
+        aws_access_key_id=getattr(settings, "AWS_ACCESS_KEY_ID", None) or None,
+        aws_secret_access_key=getattr(settings, "AWS_SECRET_ACCESS_KEY", None) or None,
+        config=Config(
+            signature_version=getattr(settings, "AWS_S3_SIGNATURE_VERSION", "s3v4"),
+            s3={"addressing_style": getattr(settings, "AWS_S3_ADDRESSING_STYLE", "auto")},
+        ),
     )
 
 
@@ -24,6 +30,12 @@ def build_presigned_url(object_key, expires_in=None):
     bucket = getattr(settings, "AWS_STORAGE_BUCKET_NAME", "")
     if not bucket or not object_key:
         return None
+
+    # FileField names are relative to the storage location prefix (AWS_LOCATION),
+    # but the object key in the bucket includes it.
+    location = (getattr(settings, "AWS_LOCATION", "") or "").strip("/")
+    if location and not object_key.startswith(location + "/"):
+        object_key = f"{location}/{object_key}"
 
     ttl = expires_in or getattr(settings, "AWS_QUERYSTRING_EXPIRE", 300)
     try:

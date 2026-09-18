@@ -1,6 +1,10 @@
 import { Link } from "react-router-dom";
 import React, { useContext } from "react";
 import { ProfileContext } from "../../plugin/Context";
+import { API_BASE_URL } from "../../../utils/constants";
+
+// Served by the backend so the placeholder matches what the API returns.
+const DEFAULT_AVATAR_URL = `${new URL(API_BASE_URL).origin}/static/img/default-avatar.svg`;
 
 function Header() {
   const [profile, setProfile] = useContext(ProfileContext);
@@ -13,7 +17,7 @@ function Header() {
             <div className="d-flex align-items-center">
               <div className="me-2 position-relative d-flex justify-content-end align-items-end mt-n5">
                 <img
-                  src={profile.image}
+                  src={profile.image || DEFAULT_AVATAR_URL}
                   className="avatar-xl rounded-circle border border-4 border-white"
                   alt="avatar"
                   style={{

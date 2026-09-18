@@ -31,10 +31,15 @@ def media_or_fallback(request, file_field, fallback_static):
     from django.templatetags.static import static
 
     if file_field and file_field.name:
-        try:
-            exists = file_field.storage.exists(file_field.name)
-        except Exception:
-            exists = False
+        if settings.USE_S3:
+            # One HEAD per object would make listings slow; the only name that
+            # is known not to exist is the model default for new profiles.
+            exists = file_field.name != 'default-user.jpg'
+        else:
+            try:
+                exists = file_field.storage.exists(file_field.name)
+            except Exception:
+                exists = False
         if exists:
             if settings.USE_S3:
                 return build_presigned_url(file_field.name)
