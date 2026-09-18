@@ -4,11 +4,10 @@ import { PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
 
 import BaseHeader from "../partials/BaseHeader";
 import BaseFooter from "../partials/BaseFooter";
-import apiInstance from "../../utils/axios";
+import useAxios from "../../utils/useAxios";
 import CartId from "../plugin/CartId";
 import Toast from "../plugin/Toast";
 import { CartContext } from "../plugin/Context";
-import { userId } from "../../utils/constants";
 import { PAYPAL_CLIENT_ID } from "../../utils/constants";
 
 function Checkout() {
@@ -19,7 +18,7 @@ function Checkout() {
   const param = useParams();
   const fetchOrder = async () => {
     try {
-      apiInstance.get(`order/checkout/${param.order_oid}/`).then((res) => {
+      useAxios().get(`order/checkout/${param.order_oid}/`).then((res) => {
         setOrder(res.data);
       });
     } catch (error) {
@@ -35,7 +34,7 @@ function Checkout() {
     formdata.append("coupon_code", coupon);
 
     try {
-      await apiInstance.post(`order/coupon/`, formdata).then((res) => {
+      await useAxios().post(`order/coupon/`, formdata).then((res) => {
         console.log(res.data);
         fetchOrder();
         Toast().fire({
@@ -140,13 +139,13 @@ function Checkout() {
                 <div className="table-responsive border-0 rounded-3">
                   <table className="table align-middle p-4 mb-0">
                     <tbody className="border-top-2">
-                      {order?.order_items?.map((o, index) => (
+                      {(order?.items || order?.order_items || []).map((o, index) => (
                         <tr>
                           <td>
                             <div className="d-lg-flex align-items-center">
                               <div className="w-100px w-md-80px mb-2 mb-md-0">
                                 <img
-                                  src={o.course.image}
+                                  src={o.course.thumbnail || o.course.image}
                                   style={{
                                     width: "100px",
                                     height: "70px",
@@ -276,7 +275,7 @@ function Checkout() {
                       </ul>
                       <div className="d-grid">
                         <form
-                          action={`http://127.0.0.1:8000/api/v1/payment/stripe-checkout/${order.oid}/`}
+                          action={`${import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api/v1/"}order/stripe-checkout/${order.order_id || order.oid}/`}
                           className="w-100"
                           method="POST"
                         >

@@ -12,7 +12,7 @@ import GetCurrentAddress from "../plugin/UserCountry";
 import UserData from "../plugin/UserData";
 import Toast from "../plugin/Toast";
 import { CartContext } from "../plugin/Context";
-import apiInstance from "../../utils/axios";
+import { addCourseToCart } from "../../utils/lmsApi";
 
 function CourseDetail() {
   const [course, setCourse] = useState([]);
@@ -23,13 +23,22 @@ function CourseDetail() {
   const param = useParams();
 
   const country = GetCurrentAddress().country;
-  const userId = UserData().user_id;
+  const userId = UserData()?.user_id;
 
   const fetchCourse = () => {
     useAxios()
-      .get(`course/course-detail/${param.slug}/`)
+      .get(`courses/${param.slug}/`)
       .then((res) => {
-        setCourse(res.data);
+        setCourse({
+          ...res.data,
+          image: res.data.thumbnail,
+          teacher: res.data.instructor,
+          curriculum: (res.data.sections || []).map((section) => ({
+            ...section,
+            variant_id: section.section_id,
+            variant_items: section.lessons || [],
+          })),
+        });
         setIsLoading();
       });
   };
@@ -38,32 +47,16 @@ function CourseDetail() {
     fetchCourse();
   }, []);
 
-  const addToCart = async (courseId, userId, price, country, cartId) => {
+  const addToCart = async (courseId) => {
     setAddToCartBtn("Adding To Cart");
-    const formdata = new FormData();
-
-    formdata.append("course_id", courseId);
-    formdata.append("user_id", userId);
-    formdata.append("price", price);
-    formdata.append("country_name", country);
-    formdata.append("cart_id", cartId);
-
     try {
-      await useAxios()
-        .post(`course/cart/`, formdata)
-        .then((res) => {
-          console.log(res.data);
-          setAddToCartBtn("Added To Cart");
-          Toast().fire({
-            title: "Added To Cart",
-            icon: "success",
-          });
-
-          // Set cart count after adding to cart
-          apiInstance.get(`course/cart-list/${CartId()}/`).then((res) => {
-            setCartCount(res.data?.length);
-          });
-        });
+      const count = await addCourseToCart(courseId, CartId());
+      setAddToCartBtn("Added To Cart");
+      Toast().fire({
+        title: "Added To Cart",
+        icon: "success",
+      });
+      setCartCount(count);
     } catch (error) {
       console.log(error);
       setAddToCartBtn("Add To Cart");
@@ -1326,15 +1319,7 @@ function CourseDetail() {
                                 <button
                                   type="button"
                                   className="btn btn-primary mb-0 w-100 me-2"
-                                  onClick={() =>
-                                    addToCart(
-                                      course?.id,
-                                      userId,
-                                      course.price,
-                                      country,
-                                      CartId()
-                                    )
-                                  }
+                                  onClick={() => addToCart(course?.course_id)}
                                 >
                                   <i className="fas fa-shopping-cart"></i> Add
                                   To Cart
@@ -1346,13 +1331,7 @@ function CourseDetail() {
                                   type="button"
                                   className="btn btn-primary mb-0 w-100 me-2"
                                   onClick={() =>
-                                    addToCart(
-                                      course.id,
-                                      1,
-                                      course.price,
-                                      "Nigeria",
-                                      "8325347"
-                                    )
+                                    addToCart(course.course_id)
                                   }
                                 >
                                   <i className="fas fa-check-circle"></i> Added
@@ -1365,13 +1344,7 @@ function CourseDetail() {
                                   type="button"
                                   className="btn btn-primary mb-0 w-100 me-2"
                                   onClick={() =>
-                                    addToCart(
-                                      course.id,
-                                      1,
-                                      course.price,
-                                      "Nigeria",
-                                      "8325347"
-                                    )
+                                    addToCart(course.course_id)
                                   }
                                 >
                                   <i className="fas fa-spinner fa-spin"></i>{" "}

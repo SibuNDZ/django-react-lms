@@ -10,7 +10,6 @@ import BaseFooter from "../partials/BaseFooter";
 
 import useAxios from "../../utils/useAxios";
 import UserData from "../plugin/UserData";
-import { teacherId } from "../../utils/constants";
 import Toast from "../plugin/Toast";
 
 function Review() {
@@ -20,7 +19,7 @@ function Review() {
 
   const fetchReviewsData = () => {
     useAxios()
-      .get(`teacher/review-lists/${teacherId}/`)
+      .get(`instructor/reviews/`)
       .then((res) => {
         console.log(res.data);
         setReviews(res.data);
@@ -32,24 +31,12 @@ function Review() {
     fetchReviewsData();
   }, []);
 
-  const handleSubmitReply = async (reviewId) => {
-    try {
-      await useAxios()
-        .patch(`teacher/review-detail/${teacherId}/${reviewId}/`, {
-          reply: reply,
-        })
-        .then((res) => {
-          console.log(res.data);
-          fetchReviewsData();
-          Toast().fire({
-            icon: "success",
-            title: "Reply sent.",
-          });
-          setReply("");
-        });
-    } catch (error) {
-      console.log(error);
-    }
+  const handleSubmitReply = async () => {
+    Toast().fire({
+      icon: "info",
+      title: "Review replies are not available yet.",
+    });
+    setReply("");
   };
 
   const handleSortByDate = (e) => {

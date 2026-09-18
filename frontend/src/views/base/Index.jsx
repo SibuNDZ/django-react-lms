@@ -11,7 +11,7 @@ import GetCurrentAddress from "../plugin/UserCountry";
 import UserData from "../plugin/UserData";
 import Toast from "../plugin/Toast";
 import { CartContext } from "../plugin/Context";
-import apiInstance from "../../utils/axios";
+import { addCourseToCart } from "../../utils/lmsApi";
 import { useAuthStore } from "../../store/auth";
 
 function Index() {
@@ -29,7 +29,7 @@ function Index() {
   const fetchCourses = async () => {
     setIsLoading(true);
     try {
-      const res = await useAxios().get(`/course/course-list/`);
+      const res = await useAxios().get(`/courses/`);
       // Handle both paginated response and plain array
       const courseData = res.data?.results || res.data || [];
       setCourses(Array.isArray(courseData) ? courseData : []);
@@ -45,7 +45,7 @@ function Index() {
   const fetchEnrolledCourses = async () => {
     if (userId) {
       try {
-        const res = await useAxios().get(`/student/course-list/${userId}/`);
+        const res = await useAxios().get(`/student/enrollments/`);
         const enrollmentData = res.data?.results || res.data || [];
         setEnrolledCourses(Array.isArray(enrollmentData) ? enrollmentData : []);
       } catch (error) {
@@ -62,31 +62,19 @@ function Index() {
     }
   }, []);
 
-  const addToCart = async (courseId, userId, price, country, cartId) => {
-    const formdata = new FormData();
-    formdata.append("course_id", courseId);
-    formdata.append("user_id", userId);
-    formdata.append("price", price);
-    formdata.append("country_name", country);
-    formdata.append("cart_id", cartId);
-
+  const addToCart = async (courseId) => {
     try {
-      await useAxios().post(`course/cart/`, formdata);
+      const count = await addCourseToCart(courseId, CartId());
       Toast().fire({ title: "Added To Cart", icon: "success" });
-      const res = await apiInstance.get(`course/cart-list/${CartId()}/`);
-      setCartCount(res.data?.length);
+      setCartCount(count);
     } catch (error) {
       console.log(error);
     }
   };
 
   const addToWishlist = (courseId) => {
-    const formdata = new FormData();
-    formdata.append("user_id", UserData()?.user_id);
-    formdata.append("course_id", courseId);
-
     useAxios()
-      .post(`student/wishlist/${UserData()?.user_id}/`, formdata)
+      .post(`wishlist/toggle/${courseId}/`)
       .then((res) => {
         Toast().fire({ icon: "success", title: res.data.message });
       });
@@ -245,10 +233,10 @@ function Index() {
             <div className="row g-4 mt-2">
               {enrolledCourses.slice(0, 4).map((enrollment, index) => (
                 <div className="col-md-6 col-lg-3" key={index}>
-                  <Link to={`/student/course-detail/${enrollment.enrollment_id}/`} className="text-decoration-none">
+                  <Link to={`/student/courses/${enrollment.enrollment_id}/`} className="text-decoration-none">
                     <div className="progress-card">
                       <img
-                        src={enrollment.course?.image || "https://via.placeholder.com/300x160?text=Course"}
+                        src={enrollment.course?.thumbnail || enrollment.course?.image || "https://via.placeholder.com/300x160?text=Course"}
                         alt={enrollment.course?.title}
                       />
                       <div className="progress-info">
@@ -256,10 +244,10 @@ function Index() {
                         <div className="progress-dsn mt-2">
                           <div
                             className="progress-bar"
-                            style={{ width: `${enrollment.progress || 0}%` }}
+                            style={{ width: `${enrollment.progress_percentage || enrollment.progress || 0}%` }}
                           ></div>
                         </div>
-                        <span className="progress-text">{enrollment.progress || 0}% complete</span>
+                        <span className="progress-text">{enrollment.progress_percentage || enrollment.progress || 0}% complete</span>
                       </div>
                     </div>
                   </Link>
@@ -323,7 +311,7 @@ function Index() {
                   <div className="course-card">
                     <Link to={`/course-detail/${course.slug}/`}>
                       <img
-                        src={course.image || "https://via.placeholder.com/300x160?text=Course"}
+                        src={course.thumbnail || "https://via.placeholder.com/300x160?text=Course"}
                         alt={course.title}
                         className="card-img-top"
                       />
@@ -332,7 +320,7 @@ function Index() {
                       <Link to={`/course-detail/${course.slug}/`} className="text-decoration-none">
                         <h5 className="card-title text-dark">{course.title}</h5>
                       </Link>
-                      <p className="instructor-name">{course.teacher?.full_name}</p>
+                      <p className="instructor-name">{course.instructor?.full_name || course.teacher?.full_name}</p>
                       <div className="rating">
                         <span className="rating-score">{course.average_rating?.toFixed(1) || "4.5"}</span>
                         <Rater total={5} rating={course.average_rating || 4.5} interactive={false} />
@@ -348,14 +336,14 @@ function Index() {
                         <div className="d-flex gap-2">
                           <button
                             className="btn btn-sm p-1"
-                            onClick={() => addToWishlist(course.id)}
+                            onClick={() => addToWishlist(course.course_id)}
                             title="Add to Wishlist"
                           >
                             <i className="fas fa-heart text-danger"></i>
                           </button>
                           <button
                             className="btn btn-sm p-1"
-                            onClick={() => addToCart(course.id, userId, course.price, country, cartId)}
+                            onClick={() => addToCart(course.course_id)}
                             title="Add to Cart"
                           >
                             <i className="fas fa-shopping-cart text-primary"></i>

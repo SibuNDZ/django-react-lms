@@ -18,6 +18,7 @@ from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
 from django.contrib.auth.hashers import check_password
+from rest_framework.views import APIView
 
 class MyTokenObtainPairView(TokenObtainPairView):
     """
@@ -166,4 +167,31 @@ class ChangePasswordAPIView(generics.CreateAPIView):
         else:
             return Response({"message": "Old password is incorrect", "icon": "warning"}, status=status.HTTP_400_BAD_REQUEST)
 
+
+class ProfileAPIView(generics.RetrieveUpdateAPIView):
+    """Get or update the authenticated user's profile."""
+    serializer_class = api_serializer.ProfileSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user.profile
+
+
+class BecomeInstructorAPIView(APIView):
+    """Upgrade the authenticated student to the instructor role and re-issue tokens."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        if user.role != User.ROLE_INSTRUCTOR:
+            user.role = User.ROLE_INSTRUCTOR
+            user.save(update_fields=['role'])
+
+        token = api_serializer.MyTokenObtainPairSerializer.get_token(user)
+        return Response({
+            "message": "You are now an instructor",
+            "role": "instructor",
+            "access": str(token.access_token),
+            "refresh": str(token),
+        })
        

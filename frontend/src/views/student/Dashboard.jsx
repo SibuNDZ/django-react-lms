@@ -17,14 +17,14 @@ function Dashboard() {
   const fetchData = () => {
     setFetching(true);
     useAxios()
-      .get(`student/summary/${UserData()?.user_id}/`)
+      .get(`student/summary/`)
       .then((res) => {
-        console.log(res.data[0]);
-        setStats(res.data[0]);
+        console.log(res.data);
+        setStats(res.data);
       });
 
     useAxios()
-      .get(`student/course-list/${UserData()?.user_id}/`)
+      .get(`student/enrollments/`)
       .then((res) => {
         console.log(res.data);
         const courseData = res.data?.results || res.data || [];
@@ -167,7 +167,7 @@ function Dashboard() {
                                 <div>
                                   <a href="#">
                                     <img
-                                      src={c.course.image}
+                                      src={c.course.thumbnail || c.course.image}
                                       alt="course"
                                       className="rounded img-4by3-lg"
                                       style={{
@@ -208,19 +208,19 @@ function Dashboard() {
                             </td>
                             <td>
                               <p className="mt-3">
-                                {moment(c.date).format("D MMM, YYYY")}
+                                {moment(c.enrolled_at || c.date).format("D MMM, YYYY")}
                               </p>
                             </td>
                             <td>
-                              <p className="mt-3">{c.lectures?.length}</p>
+                              <p className="mt-3">{c.course?.total_lessons || c.lectures?.length || 0}</p>
                             </td>
                             <td>
                               <p className="mt-3">
-                                {c.completed_lesson?.length}
+                                {c.lessons_completed || c.completed_lesson?.length || 0}
                               </p>
                             </td>
                             <td>
-                              {c.completed_lesson?.length < 1 && (
+                              {(c.lessons_completed || 0) < 1 && (
                                 <Link
                                   to={`/student/courses/${c.enrollment_id}/`}
                                   className="btn btn-success btn-sm mt-3"
@@ -230,7 +230,7 @@ function Dashboard() {
                                 </Link>
                               )}
 
-                              {c.completed_lesson?.length > 0 && (
+                              {(c.lessons_completed || 0) > 0 && (
                                 <Link
                                   to={`/student/courses/${c.enrollment_id}/`}
                                   className="btn btn-primary btn-sm mt-3"

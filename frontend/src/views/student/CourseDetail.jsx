@@ -9,6 +9,7 @@ import BaseFooter from "../partials/BaseFooter";
 import Sidebar from "./Partials/Sidebar";
 import Header from "./Partials/Header";
 import useAxios from "../../utils/useAxios";
+import { asList } from "../../utils/lmsApi";
 import UserData from "../plugin/UserData";
 import Toast from "../plugin/Toast";
 import moment from "moment";
@@ -58,18 +59,45 @@ function CourseDetail() {
   const handleQuestionShow = () => setAddQuestionShow(true);
 
   const fetchCourseDetail = async () => {
-    useAxios()
-      .get(
-        `student/course-detail/${UserData()?.user_id}/${param.enrollment_id}/`
-      )
-      .then((res) => {
-        setCourse(res.data);
-        setQuestions(res.data.question_answer);
-        setStudentReview(res.data.review);
-        const percentageCompleted =
-          (res.data.completed_lesson?.length / res.data.lectures?.length) * 100;
-        setCompletionPercentage(percentageCompleted?.toFixed(0));
-      });
+    const enrollmentRes = await useAxios().get(
+      `student/enrollments/${param.enrollment_id}/`
+    );
+    const enrollment = enrollmentRes.data;
+    const courseData = enrollment.course || {};
+    const sections = courseData.sections || [];
+    const lectures = sections.flatMap((section) => section.lessons || []);
+    const adapted = {
+      ...enrollment,
+      course: courseData,
+      curriculum: sections.map((section) => ({
+        variant_id: section.section_id,
+        title: section.title,
+        variant_items: (section.lessons || []).map((lesson) => ({
+          ...lesson,
+          variant_item_id: lesson.lesson_id,
+          content_duration: `${lesson.duration || 0}m`,
+          file: lesson.video_url || lesson.video_file,
+        })),
+      })),
+      lectures,
+      completed_lesson: (enrollment.lesson_progress || [])
+        .filter((progress) => progress.is_completed)
+        .map((progress) => ({
+          variant_item: { id: progress.lesson?.id },
+        })),
+    };
+    setCourse(adapted);
+    setCompletionPercentage(enrollment.progress_percentage || 0);
+
+    if (courseData.slug) {
+      const [qaRes, reviewRes] = await Promise.all([
+        useAxios().get(`courses/${courseData.slug}/qa/`),
+        useAxios().get(`courses/${courseData.slug}/reviews/`),
+      ]);
+      setQuestions(asList(qaRes.data));
+      const reviews = asList(reviewRes.data);
+      setStudentReview(reviews[0] || null);
+    }
   };
   useEffect(() => {
     fetchCourseDetail();
@@ -84,13 +112,11 @@ function CourseDetail() {
       [key]: "Updating",
     });
 
-    const formdata = new FormData();
-    formdata.append("user_id", UserData()?.user_id || 0);
-    formdata.append("course_id", course.course?.id);
-    formdata.append("variant_item_id", variantItemId);
-
     useAxios()
-      .post(`student/course-completed/`, formdata)
+      .post(`student/progress/${param.enrollment_id}/`, {
+        lesson_id: variantItemId,
+        is_completed: true,
+      })
       .then((res) => {
         fetchCourseDetail();
         setMarkAsCompletedStatus({
@@ -181,18 +207,11 @@ function CourseDetail() {
 
   const handleSaveQuestion = async (e) => {
     e.preventDefault();
-    const formdata = new FormData();
-
-    formdata.append("course_id", course.course?.id);
-    formdata.append("user_id", UserData()?.user_id);
-    formdata.append("title", createMessage.title);
-    formdata.append("message", createMessage.message);
-
     await useAxios()
-      .post(
-        `student/question-answer-list-create/${course.course?.id}/`,
-        formdata
-      )
+      .post(`courses/${course.course?.slug}/qa/create/`, {
+        title: createMessage.title,
+        content: createMessage.message,
+      })
       .then((res) => {
         fetchCourseDetail();
         handleQuestionClose();
@@ -205,16 +224,16 @@ function CourseDetail() {
 
   const sendNewMessage = async (e) => {
     e.preventDefault();
-    const formdata = new FormData();
-    formdata.append("course_id", course.course?.id);
-    formdata.append("user_id", UserData()?.user_id);
-    formdata.append("message", createMessage.message);
-    formdata.append("qa_id", selectedConversation?.qa_id);
-
     useAxios()
-      .post(`student/question-answer-message-create/`, formdata)
+      .post(`qa/answer/${selectedConversation?.question_id}/`, {
+        content: createMessage.message,
+      })
       .then((res) => {
-        setSelectedConversation(res.data.question);
+        setSelectedConversation((prev) => ({
+          ...prev,
+          answers: [...(prev?.answers || []), res.data],
+          messages: [...(prev?.messages || []), res.data],
+        }));
       });
   };
 
@@ -246,14 +265,11 @@ function CourseDetail() {
   const handleCreateReviewSubmit = (e) => {
     e.preventDefault();
 
-    const formdata = new FormData();
-    formdata.append("course_id", course.course?.id);
-    formdata.append("user_id", UserData()?.user_id);
-    formdata.append("rating", createReview.rating);
-    formdata.append("review", createReview.review);
-
     useAxios()
-      .post(`student/rate-course/`, formdata)
+      .post(`courses/${course.course?.slug}/reviews/create/`, {
+        rating: createReview.rating,
+        review_text: createReview.review,
+      })
       .then((res) => {
         console.log(res.data);
         fetchCourseDetail();

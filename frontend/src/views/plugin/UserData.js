@@ -2,18 +2,17 @@ import Cookie from "js-cookie";
 import jwtDecode from "jwt-decode";
 
 function UserData() {
-  let access_token = Cookie.get("access_token");
-  let refresh_token = Cookie.get("refresh_token");
+  const access_token = Cookie.get("access_token");
 
-  if (access_token && refresh_token) {
-    const token = refresh_token;
-    const decoded = jwtDecode(token);
+  if (!access_token) {
+    return null;
+  }
 
-    return decoded;
-  } else {
-    // pass
+  try {
+    return jwtDecode(access_token);
+  } catch (error) {
+    return null;
   }
 }
 
-
-export default UserData
+export default UserData;

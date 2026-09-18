@@ -96,6 +96,9 @@ class UserLoginTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('access', response.data)
         self.assertIn('refresh', response.data)
+        from rest_framework_simplejwt.tokens import AccessToken
+        token = AccessToken(response.data['access'])
+        self.assertEqual(token['role'], 'student')
 
     def test_login_invalid_credentials(self):
         """Test login fails with invalid credentials"""
@@ -299,3 +302,54 @@ class RateLimitingTests(APITestCase):
         from django.conf import settings
         self.assertIn('DEFAULT_THROTTLE_RATES', settings.REST_FRAMEWORK)
         self.assertIn('anon', settings.REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'])
+
+
+class ProfileAndRoleTests(APITestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            email='learner@example.com',
+            password='TestPass123!',
+            username='learner',
+            full_name='Learner',
+            role='student',
+        )
+
+    def test_profile_requires_auth(self):
+        response = self.client.get('/api/v1/user/profile/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_get_and_update_own_profile(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get('/api/v1/user/profile/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['user']['email'], 'learner@example.com')
+
+        patched = self.client.patch('/api/v1/user/profile/', {
+            'full_name': 'Updated Learner',
+            'country': 'South Africa',
+        }, format='json')
+        self.assertEqual(patched.status_code, status.HTTP_200_OK)
+        self.assertEqual(patched.data['full_name'], 'Updated Learner')
+
+    def test_become_instructor(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.post('/api/v1/user/become-instructor/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['role'], 'instructor')
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.role, 'instructor')
+        self.assertIn('access', response.data)
+
+    def test_register_instructor_role(self):
+        response = self.client.post('/api/v1/user/register/', {
+            'full_name': 'Teacher',
+            'email': 'teacher@example.com',
+            'password': 'StrongPass123!',
+            'password2': 'StrongPass123!',
+            'role': 'instructor',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        created = User.objects.get(email='teacher@example.com')
+        self.assertEqual(created.role, 'instructor')
+

@@ -11,7 +11,7 @@ import GetCurrentAddress from "../plugin/UserCountry";
 import UserData from "../plugin/UserData";
 import Toast from "../plugin/Toast";
 import { CartContext } from "../plugin/Context";
-import apiInstance from "../../utils/axios";
+import { addCourseToCart } from "../../utils/lmsApi";
 
 function Search() {
   const [courses, setCourses] = useState([]);
@@ -25,7 +25,7 @@ function Search() {
   const fetchCourse = async () => {
     setIsLoading(true);
     try {
-      const res = await useAxios().get(`/course/course-list/`);
+      const res = await useAxios().get(`/courses/`);
       // Handle both paginated response and plain array
       const courseData = res.data?.results || res.data || [];
       setCourses(Array.isArray(courseData) ? courseData : []);
@@ -41,30 +41,14 @@ function Search() {
     fetchCourse();
   }, []);
 
-  const addToCart = async (courseId, userId, price, country, cartId) => {
-    const formdata = new FormData();
-
-    formdata.append("course_id", courseId);
-    formdata.append("user_id", userId);
-    formdata.append("price", price);
-    formdata.append("country_name", country);
-    formdata.append("cart_id", cartId);
-
+  const addToCart = async (courseId) => {
     try {
-      await useAxios()
-        .post(`course/cart/`, formdata)
-        .then((res) => {
-          console.log(res.data);
-          Toast().fire({
-            title: "Added To Cart",
-            icon: "success",
-          });
-
-          // Set cart count after adding to cart
-          apiInstance.get(`course/cart-list/${CartId()}/`).then((res) => {
-            setCartCount(res.data?.length);
-          });
-        });
+      const count = await addCourseToCart(courseId, CartId());
+      Toast().fire({
+        title: "Added To Cart",
+        icon: "success",
+      });
+      setCartCount(count);
     } catch (error) {
       console.log(error);
     }
@@ -125,7 +109,7 @@ function Search() {
                     <div className="card card-hover">
                       <Link to={`/course-detail/${c.slug}/`}>
                         <img
-                          src={c.image}
+                          src={c.thumbnail || c.image}
                           alt="course"
                           className="card-img-top"
                           style={{
@@ -150,13 +134,13 @@ function Search() {
                         </div>
                         <h4 className="mb-2 text-truncate-line-2 ">
                           <Link
-                            to={`/course-detail/slug/`}
+                            to={`/course-detail/${c.slug}/`}
                             className="text-inherit text-decoration-none text-dark fs-5"
                           >
                             {c.title}
                           </Link>
                         </h4>
-                        <small>By: {c.teacher.full_name}</small> <br />
+                        <small>By: {c.instructor?.full_name || c.teacher?.full_name}</small> <br />
                         <small>
                           {c.students?.length} Student
                           {c.students?.length > 1 && "s"}
@@ -183,15 +167,7 @@ function Search() {
                           <div className="col-auto">
                             <button
                               type="button"
-                              onClick={() =>
-                                addToCart(
-                                  c.id,
-                                  userId,
-                                  c.price,
-                                  country,
-                                  cartId
-                                )
-                              }
+                              onClick={() => addToCart(c.course_id)}
                               className="text-inherit text-decoration-none btn btn-primary me-2"
                             >
                               <i className="fas fa-shopping-cart text-primary text-white" />

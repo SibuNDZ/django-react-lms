@@ -37,6 +37,10 @@ if RAILWAY_STATIC_URL:
     ALLOWED_HOSTS.append(urlparse(RAILWAY_STATIC_URL).netloc)
 # Also allow .railway.app domains
 ALLOWED_HOSTS.extend([".railway.app", ".up.railway.app"])
+if DEBUG:
+    for host in ("localhost", "127.0.0.1"):
+        if host not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(host)
 
 
 # Application definition
@@ -346,6 +350,8 @@ USE_REDIS_CACHE = env.bool("USE_REDIS_CACHE", default=False)
 
 # Use local memory cache for testing/development, Redis for production
 import sys
+if 'test' in sys.argv:
+    REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = []
 if 'test' in sys.argv or not USE_REDIS_CACHE:
     CACHES = {
         'default': {

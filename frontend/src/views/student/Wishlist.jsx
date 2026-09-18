@@ -12,7 +12,7 @@ import useAxios from "../../utils/useAxios";
 import UserData from "../plugin/UserData";
 import Toast from "../plugin/Toast";
 import CartId from "../plugin/CartId";
-import GetCurrentAddress from "../plugin/UserCountry";
+import { addCourseToCart, asList } from "../../utils/lmsApi";
 import { CartContext } from "../plugin/Context";
 
 function Wishlist() {
@@ -21,58 +21,34 @@ function Wishlist() {
 
   const fetchWishlist = () => {
     useAxios()
-      .get(`student/wishlist/${UserData()?.user_id}/`)
+      .get(`wishlist/`)
       .then((res) => {
         console.log(res.data);
-        setWishlist(res.data);
+        setWishlist(asList(res.data));
       });
   };
-  const country = GetCurrentAddress()?.country;
 
   useEffect(() => {
     fetchWishlist();
   }, []);
 
-  const addToCart = async (courseId, userId, price, country, cartId) => {
-    const formdata = new FormData();
-
-    formdata.append("course_id", courseId);
-    formdata.append("user_id", userId);
-    formdata.append("price", price);
-    formdata.append("country_name", country);
-    formdata.append("cart_id", cartId);
-
+  const addToCart = async (courseId) => {
     try {
-      await useAxios()
-        .post(`course/cart/`, formdata)
-        .then((res) => {
-          console.log(res.data);
-          Toast().fire({
-            title: "Added To Cart",
-            icon: "success",
-          });
-
-          // Set cart count after adding to cart
-          useAxios()
-            .get(`course/cart-list/${CartId()}/`)
-            .then((res) => {
-              setCartCount(res.data?.length);
-            });
-        });
+      const count = await addCourseToCart(courseId, CartId());
+      Toast().fire({
+        title: "Added To Cart",
+        icon: "success",
+      });
+      setCartCount(count);
     } catch (error) {
       console.log(error);
     }
   };
 
   const addToWishlist = (courseId) => {
-    const formdata = new FormData();
-    formdata.append("user_id", UserData()?.user_id);
-    formdata.append("course_id", courseId);
-
     useAxios()
-      .post(`student/wishlist/${UserData()?.user_id}/`, formdata)
+      .post(`wishlist/toggle/${courseId}/`)
       .then((res) => {
-        console.log(res.data);
         fetchWishlist();
         Toast().fire({
           icon: "success",
@@ -107,7 +83,7 @@ function Wishlist() {
                         <div className="card card-hover">
                           <Link to={`/course-detail/${w.course.slug}/`}>
                             <img
-                              src={w.course.image}
+                              src={w.course.thumbnail || w.course.image}
                               alt="course"
                               className="card-img-top"
                               style={{
@@ -129,7 +105,7 @@ function Wishlist() {
                                 </span>
                               </div>
                               <a
-                                onClick={() => addToWishlist(w.course?.id)}
+                                onClick={() => addToWishlist(w.course?.course_id)}
                                 className="fs-5"
                               >
                                 <i className="fas fa-heart text-danger align-middle" />
@@ -137,7 +113,7 @@ function Wishlist() {
                             </div>
                             <h4 className="mb-2 text-truncate-line-2 ">
                               <Link
-                                to={`/course-detail/slug/`}
+                                to={`/course-detail/${w.course.slug}/`}
                                 className="text-inherit text-decoration-none text-dark fs-5"
                               >
                                 {w.course.title}
@@ -175,13 +151,7 @@ function Wishlist() {
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    addToCart(
-                                      w.course.id,
-                                      UserData()?.user_id,
-                                      w.course.price,
-                                      country,
-                                      CartId()
-                                    )
+                                    addToCart(w.course.course_id)
                                   }
                                   className="text-inherit text-decoration-none btn btn-primary me-2"
                                 >

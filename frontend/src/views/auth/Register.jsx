@@ -12,6 +12,7 @@ function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
+  const [role, setRole] = useState("student");
   const [isLoading, setIsLoading] = useState(false);
 
   const navigate = useNavigate();
@@ -20,7 +21,7 @@ function Register() {
     e.preventDefault();
     setIsLoading(true);
 
-    const { error } = await register(fullName, email, password, password2);
+    const { error } = await register(fullName, email, password, password2, role);
     if (error) {
       alert(error);
       setIsLoading(false);
@@ -116,6 +117,18 @@ function Register() {
                       required=""
                       onChange={(e) => setPassword2(e.target.value)}
                     />
+                  </div>
+                  <div className="mb-3 form-check">
+                    <input
+                      type="checkbox"
+                      className="form-check-input"
+                      id="instructorRole"
+                      checked={role === "instructor"}
+                      onChange={(e) => setRole(e.target.checked ? "instructor" : "student")}
+                    />
+                    <label className="form-check-label" htmlFor="instructorRole">
+                      I want to teach on DSN LMS
+                    </label>
                   </div>
                   <div>
                     <div className="d-grid">

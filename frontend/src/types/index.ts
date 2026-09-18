@@ -24,7 +24,7 @@ export interface DecodedToken {
   user_id: number;
   full_name: string;
   email: string;
-  username: string;
+  role: string;
 }
 
 // Auth Types

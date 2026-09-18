@@ -7,8 +7,6 @@ import BaseHeader from "../partials/BaseHeader";
 import BaseFooter from "../partials/BaseFooter";
 
 import useAxios from "../../utils/useAxios";
-import Useta from "../plugin/UserData";
-import { teacherId } from "../../utils/constants";
 import UserData from "../plugin/UserData";
 
 function Orders() {
@@ -16,7 +14,7 @@ function Orders() {
 
   useEffect(() => {
     useAxios()
-      .get(`teacher/course-order-list/${UserData()?.teacher_id}/`)
+      .get(`instructor/orders/`)
       .then((res) => {
         console.log(res.data);
         setOrders(res.data);

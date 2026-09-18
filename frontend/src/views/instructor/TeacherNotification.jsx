@@ -18,7 +18,7 @@ function TeacherNotification() {
 
   const fetchNoti = () => {
     useAxios()
-      .get(`teacher/noti-list/${UserData()?.teacher_id}/`)
+      .get(`instructor/notifications/`)
       .then((res) => {
         setNoti(res.data);
         console.log(res.data);
@@ -30,17 +30,8 @@ function TeacherNotification() {
   }, []);
 
   const handleMarkAsSeen = (notiId) => {
-    const formdata = new FormData();
-
-    formdata.append("teacher", UserData()?.teacher_id);
-    formdata.append("pk", notiId);
-    formdata.append("seen", true);
-
     useAxios()
-      .patch(
-        `teacher/noti-detail/${UserData()?.teacher_id}/${notiId}`,
-        formdata
-      )
+      .post(`notifications/mark-read/${notiId}/`)
       .then((res) => {
         console.log(res.data);
         fetchNoti();

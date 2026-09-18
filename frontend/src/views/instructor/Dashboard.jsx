@@ -7,7 +7,7 @@ import BaseHeader from "../partials/BaseHeader";
 import BaseFooter from "../partials/BaseFooter";
 
 import useAxios from "../../utils/useAxios";
-import UserData from "../plugin/UserData";
+import { Link } from "react-router-dom";
 
 function Dashboard() {
   const [stats, setStats] = useState([]);
@@ -15,14 +15,13 @@ function Dashboard() {
 
   const fetchCourseData = () => {
     useAxios()
-      .get(`teacher/summary/${UserData()?.teacher_id}/`)
+      .get(`instructor/dashboard/`)
       .then((res) => {
-        console.log(res.data[0]);
-        setStats(res.data[0]);
+        setStats(res.data);
       });
 
     useAxios()
-      .get(`teacher/course-lists/${UserData()?.teacher_id}/`)
+      .get(`instructor/courses/`)
       .then((res) => {
         console.log(res.data);
         const courseData = res.data?.results || res.data || [];
@@ -160,7 +159,7 @@ function Dashboard() {
                               <div>
                                 <a href="#">
                                   <img
-                                    src={c.image}
+                                    src={c.thumbnail}
                                     alt="course"
                                     className="rounded img-4by3-lg"
                                     style={{
@@ -205,26 +204,36 @@ function Dashboard() {
                             </div>
                           </td>
                           <td>
-                            <p className="mt-3">{c.students?.length}</p>
+                            <p className="mt-3">{c.total_students || 0}</p>
                           </td>
                           <td>
                             <p className="mt-3 badge bg-success">{c.level}</p>
                           </td>
                           <td>
                             <p className="mt-3 badge bg-warning text-dark">
-                              Intermediate
+                              {c.status}
                             </p>
                           </td>
                           <td>
                             <p className="mt-3">
-                              {moment(c.date).format("DD MMM, YYYY")}
+                              {moment(c.created_at).format("DD MMM, YYYY")}
                             </p>
                           </td>
                           <td>
-                            <button className="btn btn-primary btn-sm mt-3 me-1">
+                            <Link
+                              to={`/instructor/edit-course/${c.course_id}/`}
+                              className="btn btn-primary btn-sm mt-3 me-1"
+                            >
                               <i className="fas fa-edit"></i>
-                            </button>
-                            <button className="btn btn-danger btn-sm mt-3 me-1">
+                            </Link>
+                            <button
+                              className="btn btn-danger btn-sm mt-3 me-1"
+                              onClick={() =>
+                                useAxios()
+                                  .delete(`instructor/courses/${c.course_id}/`)
+                                  .then(() => fetchCourseData())
+                              }
+                            >
                               <i className="fas fa-trash"></i>
                             </button>
                             <button className="btn btn-secondary btn-sm mt-3 me-1">

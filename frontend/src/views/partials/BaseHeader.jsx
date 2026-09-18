@@ -2,6 +2,7 @@ import React, { useContext, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { CartContext } from "../plugin/Context";
 import { useAuthStore } from "../../store/auth";
+import { becomeInstructor } from "../../utils/auth";
 
 function BaseHeader() {
     const [cartCount, setCartCount] = useContext(CartContext);
@@ -15,14 +16,18 @@ function BaseHeader() {
         }
     };
 
-    const [isLoggedIn, user] = useAuthStore((state) => [state.isLoggedIn, state.user]);
+    const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+    const user = useAuthStore((state) => state.user);
+    const isInstructor = useAuthStore((state) => state.isInstructor);
+    const loggedIn = isLoggedIn();
+    const currentUser = user();
 
     const getUserInitials = () => {
-        if (user?.full_name) {
-            const names = user.full_name.split(' ');
+        if (currentUser?.full_name) {
+            const names = currentUser.full_name.split(' ');
             return names.map(n => n[0]).join('').toUpperCase().slice(0, 2);
         }
-        return user?.username?.[0]?.toUpperCase() || 'U';
+        return currentUser?.username?.[0]?.toUpperCase() || 'U';
     };
 
     return (
@@ -117,7 +122,7 @@ function BaseHeader() {
 
                     {/* Right Side Navigation */}
                     <ul className="navbar-nav align-items-center">
-                        {isLoggedIn() ? (
+                        {loggedIn ? (
                             <>
                                 {/* My Learning */}
                                 <li className="nav-item">
@@ -126,7 +131,7 @@ function BaseHeader() {
                                     </Link>
                                 </li>
 
-                                {/* Instructor Dropdown */}
+                                {isInstructor() ? (
                                 <li className="nav-item dropdown">
                                     <a
                                         className="nav-link dropdown-toggle"
@@ -167,6 +172,20 @@ function BaseHeader() {
                                         </li>
                                     </ul>
                                 </li>
+                                ) : (
+                                <li className="nav-item">
+                                    <button
+                                        className="nav-link btn btn-link"
+                                        style={{ fontWeight: 600 }}
+                                        onClick={async () => {
+                                            await becomeInstructor();
+                                            navigate("/instructor/dashboard/");
+                                        }}
+                                    >
+                                        Teach
+                                    </button>
+                                </li>
+                                )}
 
                                 {/* Wishlist */}
                                 <li className="nav-item">
@@ -210,8 +229,8 @@ function BaseHeader() {
                                     </a>
                                     <ul className="dropdown-menu dropdown-menu-end" style={{ minWidth: '200px' }}>
                                         <li className="px-3 py-2 border-bottom">
-                                            <div className="fw-bold">{user?.full_name || user?.username}</div>
-                                            <small className="text-muted">{user?.email}</small>
+                                            <div className="fw-bold">{currentUser?.full_name || currentUser?.username}</div>
+                                            <small className="text-muted">{currentUser?.email}</small>
                                         </li>
                                         <li>
                                             <Link className="dropdown-item" to="/student/dashboard/">

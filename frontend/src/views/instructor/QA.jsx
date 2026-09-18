@@ -22,7 +22,7 @@ function QA() {
 
   const fetchQuestions = async () => {
     useAxios()
-      .get(`teacher/question-answer-list/${UserData()?.teacher_id}/`)
+      .get(`instructor/qa/`)
       .then((res) => {
         console.log(res.data);
         setQuestions(res.data);
@@ -46,19 +46,20 @@ function QA() {
       [event.target.name]: event.target.value,
     });
   };
-  console.log(selectedConversation.course);
+  console.log(selectedConversation?.course);
   const sendNewMessage = async (e) => {
     e.preventDefault();
-    const formdata = new FormData();
-    formdata.append("course_id", selectedConversation.course);
-    formdata.append("user_id", UserData()?.user_id);
-    formdata.append("message", createMessage.message);
-    formdata.append("qa_id", selectedConversation?.qa_id);
-
     useAxios()
-      .post(`student/question-answer-message-create/`, formdata)
+      .post(`qa/answer/${selectedConversation?.question_id}/`, {
+        content: createMessage.message,
+      })
       .then((res) => {
-        setSelectedConversation(res.data.question);
+        fetchQuestions();
+        setSelectedConversation((prev) => ({
+          ...prev,
+          answers: [...(prev.answers || []), res.data],
+          messages: [...(prev.messages || []), res.data],
+        }));
       });
   };
 

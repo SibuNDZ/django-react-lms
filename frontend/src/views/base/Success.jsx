@@ -4,7 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import BaseHeader from "../partials/BaseHeader";
 import BaseFooter from "../partials/BaseFooter";
 
-import apiInstance from "../../utils/axios";
+import useAxios from "../../utils/useAxios";
 
 function Success() {
   const [order, setOrder] = useState([]);
@@ -29,7 +29,7 @@ function Success() {
     setOrderMessage("Processing Payment");
 
     try {
-      apiInstance.post(`payment/payment-sucess/`, formdata).then((res) => {
+      useAxios().post(`order/payment-success/${param.order_oid}/`, formdata).then((res) => {
         console.log(res.data);
         setOrderMessage(res.data.message);
       });

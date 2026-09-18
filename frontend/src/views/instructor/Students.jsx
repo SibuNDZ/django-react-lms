@@ -14,7 +14,7 @@ function Students() {
 
   useEffect(() => {
     useAxios()
-      .get(`teacher/student-lists/${UserData()?.teacher_id}/`)
+      .get(`instructor/students/`)
       .then((res) => {
         console.log("res.data: ", res.data);
         setStudents(res.data);
@@ -51,7 +51,7 @@ function Students() {
                       <div className="card-body">
                         <div className="text-center">
                           <img
-                            src={`http://127.0.0.1:8000${s.image}`}
+                            src={s.image}
                             className="rounded-circle avatar-xl mb-3"
                             style={{
                               width: "70px",

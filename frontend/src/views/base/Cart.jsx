@@ -7,7 +7,7 @@ import apiInstance from "../../utils/axios";
 import CartId from "../plugin/CartId";
 import Toast from "../plugin/Toast";
 import { CartContext } from "../plugin/Context";
-import { userId } from "../../utils/constants";
+import useAxios from "../../utils/useAxios";
 
 function Cart() {
   const [cart, setCart] = useState([]);
@@ -20,15 +20,11 @@ function Cart() {
   });
   const fetchCartItem = async () => {
     try {
-      await apiInstance.get(`course/cart-list/${CartId()}/`).then((res) => {
-        console.log(res.data);
-        setCart(res.data);
-      });
+      const cartRes = await apiInstance.get(`cart/${CartId()}/`);
+      setCart(cartRes.data?.items || []);
 
-      await apiInstance.get(`cart/stats/${CartId()}/`).then((res) => {
-        console.log(res.data);
-        setCartStats(res.data);
-      });
+      const statsRes = await apiInstance.get(`cart/stats/${CartId()}/`);
+      setCartStats(statsRes.data);
     } catch (error) {
       console.log(error);
     }
@@ -40,19 +36,17 @@ function Cart() {
 
   const navigate = useNavigate()
 
-  const cartItemDelete = async (itemId) => {
+  const cartItemDelete = async (courseId) => {
     await apiInstance
-      .delete(`course/cart-item-delete/${CartId()}/${itemId}/`)
+      .delete(`cart/${CartId()}/remove/${courseId}/`)
       .then((res) => {
-        console.log(res.data);
         fetchCartItem();
         Toast().fire({
           icon: "success",
           title: "Cart Item Deleted",
         });
-        // Set cart count after adding to cart
-        apiInstance.get(`course/cart-list/${CartId()}/`).then((res) => {
-          setCartCount(res.data?.length);
+        apiInstance.get(`cart/${CartId()}/`).then((res) => {
+          setCartCount(res.data?.item_count || 0);
         });
       });
   };
@@ -71,12 +65,10 @@ function Cart() {
     formdata.append("email", bioData.email);
     formdata.append("country", bioData.country);
     formdata.append("cart_id", CartId());
-    formdata.append("user_id", userId);
 
     try {
-      await apiInstance.post(`order/create-order/`, formdata).then((res) => {
-        console.log(res.data);
-        navigate(`/checkout/${res.data.order_oid}/`);
+      await useAxios().post(`order/create/`, formdata).then((res) => {
+        navigate(`/checkout/${res.data.order_id}/`);
       });
     } catch (error) {
       console.log(error);
@@ -140,7 +132,7 @@ function Cart() {
                               <div className="d-lg-flex align-items-center">
                                 <div className="w-100px w-md-80px mb-2 mb-md-0">
                                   <img
-                                    src={c.course.image}
+                                    src={c.course.thumbnail}
                                     style={{
                                       width: "100px",
                                       height: "70px",
@@ -165,7 +157,7 @@ function Cart() {
                             </td>
                             <td>
                               <button
-                                onClick={() => cartItemDelete(c.id)}
+                                onClick={() => cartItemDelete(c.course.course_id)}
                                 className="btn btn-sm btn-danger px-2 mb-0"
                                 type="button"
                               >

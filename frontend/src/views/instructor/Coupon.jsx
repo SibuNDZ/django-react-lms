@@ -10,8 +10,6 @@ import BaseHeader from "../partials/BaseHeader";
 import BaseFooter from "../partials/BaseFooter";
 
 import useAxios from "../../utils/useAxios";
-import Useta from "../plugin/UserData";
-import { teacherId } from "../../utils/constants";
 import UserData from "../plugin/UserData";
 import Toast from "../plugin/Toast";
 
@@ -34,7 +32,7 @@ function Coupon() {
 
   const fetchCoupons = () => {
     useAxios()
-      .get(`teacher/coupon-list/${UserData()?.teacher_id}/`)
+      .get(`instructor/coupons/`)
       .then((res) => {
         console.log(res.data);
         setCoupons(res.data);
@@ -57,12 +55,11 @@ function Coupon() {
 
     const formdata = new FormData();
 
-    formdata.append("teacher", UserData()?.teacher_id);
     formdata.append("code", createCoupon.code);
     formdata.append("discount", createCoupon.discount);
 
     useAxios()
-      .post(`teacher/coupon-list/${UserData()?.teacher_id}/`, formdata)
+      .post(`instructor/coupons/`, formdata)
       .then((res) => {
         console.log(res.data);
         fetchCoupons();
@@ -76,7 +73,7 @@ function Coupon() {
 
   const handleDeleteCoupon = (couponId) => {
     useAxios()
-      .delete(`teacher/coupon-detail/${UserData()?.teacher_id}/${couponId}/`)
+      .delete(`instructor/coupons/${couponId}/`)
       .then((res) => {
         console.log(res.data);
         fetchCoupons();
@@ -92,13 +89,12 @@ function Coupon() {
 
     const formdata = new FormData();
 
-    formdata.append("teacher", UserData()?.teacher_id);
     formdata.append("code", createCoupon.code);
-    formdata.append("discount", createCoupon.discount);
+    formdata.append("discount_value", createCoupon.discount);
 
     useAxios()
       .patch(
-        `teacher/coupon-detail/${UserData()?.teacher_id}/${selectedCoupon.id}/`,
+        `instructor/coupons/${selectedCoupon.id}/`,
         formdata
       )
       .then((res) => {

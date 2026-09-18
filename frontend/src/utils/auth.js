@@ -24,13 +24,14 @@ export const login = async (email, password) => {
   }
 };
 
-export const register = async (full_name, email, password, password2) => {
+export const register = async (full_name, email, password, password2, role = "student") => {
   try {
     const { data } = await axios.post(`user/register/`, {
       full_name,
       email,
       password,
       password2,
+      role,
     });
 
     await login(email, password);
@@ -39,7 +40,9 @@ export const register = async (full_name, email, password, password2) => {
     return {
       data: null,
       error:
-        `${error.response.data.full_name} - ${error.response.data.email}` ||
+        error.response?.data?.email?.[0] ||
+        error.response?.data?.password?.[0] ||
+        error.response?.data?.detail ||
         "Something went wrong",
     };
   }
@@ -49,6 +52,21 @@ export const logout = () => {
   Cookie.remove("access_token");
   Cookie.remove("refresh_token");
   useAuthStore.getState().setUser(null);
+};
+
+export const becomeInstructor = async () => {
+  const accessToken = Cookie.get("access_token");
+  const response = await axios.post(
+    `user/become-instructor/`,
+    {},
+    {
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    }
+  );
+  if (response.data?.access && response.data?.refresh) {
+    setAuthUser(response.data.access, response.data.refresh);
+  }
+  return response.data;
 };
 
 export const setUser = async () => {

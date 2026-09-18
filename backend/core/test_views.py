@@ -31,12 +31,14 @@ class BaseAPITestCase(APITestCase):
         self.instructor = User.objects.create_user(
             email='instructor@test.com',
             username='instructor',
-            password='testpass123'
+            password='testpass123',
+            role='instructor',
         )
         self.student = User.objects.create_user(
             email='student@test.com',
             username='student',
-            password='testpass123'
+            password='testpass123',
+            role='student',
         )
         self.category = Category.objects.create(
             name='Programming',
@@ -243,7 +245,7 @@ class OrderAPITests(BaseAPITestCase):
         """Test listing user's orders"""
         Order.objects.create(student=self.student, total=Decimal('49.99'))
         self.authenticate_as_student()
-        response = self.client.get('/api/v1/orders/')
+        response = self.client.get('/api/v1/order/list/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['results']), 1)
 
@@ -270,7 +272,7 @@ class CouponAPITests(BaseAPITestCase):
     def test_apply_coupon(self):
         """Test applying valid coupon to order"""
         self.authenticate_as_student()
-        response = self.client.post('/api/v1/coupon/apply/', {
+        response = self.client.post('/api/v1/order/coupon/', {
             'order_oid': self.order.order_id,
             'coupon_code': 'SAVE20'
         })
@@ -280,7 +282,7 @@ class CouponAPITests(BaseAPITestCase):
     def test_apply_invalid_coupon(self):
         """Test applying non-existent coupon"""
         self.authenticate_as_student()
-        response = self.client.post('/api/v1/coupon/apply/', {
+        response = self.client.post('/api/v1/order/coupon/', {
             'order_oid': self.order.order_id,
             'coupon_code': 'INVALID'
         })
@@ -291,7 +293,7 @@ class CouponAPITests(BaseAPITestCase):
         self.coupon.valid_until = timezone.now() - timedelta(days=1)
         self.coupon.save()
         self.authenticate_as_student()
-        response = self.client.post('/api/v1/coupon/apply/', {
+        response = self.client.post('/api/v1/order/coupon/', {
             'order_oid': self.order.order_id,
             'coupon_code': 'SAVE20'
         })
@@ -311,14 +313,14 @@ class EnrollmentAPITests(BaseAPITestCase):
     def test_list_enrollments(self):
         """Test listing user's enrollments"""
         self.authenticate_as_student()
-        response = self.client.get('/api/v1/enrollments/')
+        response = self.client.get('/api/v1/student/enrollments/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['results']), 1)
 
     def test_enrollment_detail(self):
         """Test getting enrollment details"""
         self.authenticate_as_student()
-        response = self.client.get(f'/api/v1/enrollment/{self.enrollment.enrollment_id}/')
+        response = self.client.get(f'/api/v1/student/enrollments/{self.enrollment.enrollment_id}/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['course']['title'], 'Python Basics')
 
@@ -332,13 +334,13 @@ class EnrollmentAPITests(BaseAPITestCase):
             status='published'
         )
         self.authenticate_as_student()
-        response = self.client.post(f'/api/v1/enroll/free/{free_course.course_id}/')
+        response = self.client.post(f'/api/v1/student/enroll-free/{free_course.course_id}/')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def test_enroll_paid_course_as_free(self):
         """Test enrolling in paid course as free fails"""
         self.authenticate_as_student()
-        response = self.client.post(f'/api/v1/enroll/free/{self.course.course_id}/')
+        response = self.client.post(f'/api/v1/student/enroll-free/{self.course.course_id}/')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
@@ -359,7 +361,7 @@ class LessonProgressAPITests(BaseAPITestCase):
         """Test updating lesson progress"""
         self.authenticate_as_student()
         response = self.client.post(
-            f'/api/v1/enrollment/{self.enrollment.enrollment_id}/progress/',
+            f'/api/v1/student/progress/{self.enrollment.enrollment_id}/',
             {
                 'lesson_id': self.lesson.lesson_id,
                 'is_completed': True,
@@ -373,7 +375,7 @@ class LessonProgressAPITests(BaseAPITestCase):
         """Test that completing lessons updates enrollment progress"""
         self.authenticate_as_student()
         self.client.post(
-            f'/api/v1/enrollment/{self.enrollment.enrollment_id}/progress/',
+            f'/api/v1/student/progress/{self.enrollment.enrollment_id}/',
             {'lesson_id': self.lesson.lesson_id, 'is_completed': True}
         )
         self.enrollment.refresh_from_db()
@@ -406,7 +408,7 @@ class ReviewAPITests(BaseAPITestCase):
         """Test creating a review"""
         self.authenticate_as_student()
         response = self.client.post(
-            f'/api/v1/courses/{self.course.slug}/review/',
+            f'/api/v1/courses/{self.course.slug}/reviews/create/',
             {'rating': 5, 'review_text': 'Excellent!'}
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -416,7 +418,7 @@ class ReviewAPITests(BaseAPITestCase):
         self.enrollment.delete()
         self.authenticate_as_student()
         response = self.client.post(
-            f'/api/v1/courses/{self.course.slug}/review/',
+            f'/api/v1/courses/{self.course.slug}/reviews/create/',
             {'rating': 5, 'review_text': 'Excellent!'}
         )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -431,7 +433,7 @@ class ReviewAPITests(BaseAPITestCase):
         )
         self.authenticate_as_student()
         response = self.client.post(
-            f'/api/v1/courses/{self.course.slug}/review/',
+            f'/api/v1/courses/{self.course.slug}/reviews/create/',
             {'rating': 5, 'review_text': 'Actually excellent!'}
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -464,7 +466,7 @@ class QAAPITests(BaseAPITestCase):
         """Test asking a question"""
         self.authenticate_as_student()
         response = self.client.post(
-            f'/api/v1/courses/{self.course.slug}/question/',
+            f'/api/v1/courses/{self.course.slug}/qa/create/',
             {'title': 'Question?', 'content': 'Details'}
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -479,7 +481,7 @@ class QAAPITests(BaseAPITestCase):
         )
         self.authenticate_as_instructor()
         response = self.client.post(
-            f'/api/v1/question/{question.question_id}/answer/',
+            f'/api/v1/qa/answer/{question.question_id}/',
             {'content': 'Here is the answer'}
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -539,6 +541,40 @@ class InstructorDashboardAPITests(BaseAPITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['results']), 1)
 
+    def test_student_cannot_access_instructor_dashboard(self):
+        self.authenticate_as_student()
+        response = self.client.get('/api/v1/instructor/dashboard/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_create_and_delete_course(self):
+        self.authenticate_as_instructor()
+        response = self.client.post('/api/v1/instructor/courses/', {
+            'title': 'New Course',
+            'description': 'Created via API',
+            'price': '19.99',
+            'sections': [
+                {'title': 'Intro', 'lessons': [{'title': 'Welcome'}]}
+            ]
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        course_id = response.data.get('course_id') or Course.objects.get(title='New Course').course_id
+
+        detail = self.client.get(f'/api/v1/instructor/courses/{course_id}/')
+        self.assertEqual(detail.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(detail.data['sections']), 1)
+
+        deleted = self.client.delete(f'/api/v1/instructor/courses/{course_id}/')
+        self.assertEqual(deleted.status_code, status.HTTP_204_NO_CONTENT)
+
+
+class StudentSummaryAPITests(BaseAPITestCase):
+    def test_student_summary(self):
+        Enrollment.objects.create(student=self.student, course=self.course)
+        self.authenticate_as_student()
+        response = self.client.get('/api/v1/student/summary/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['total_courses'], 1)
+
 
 class HealthCheckAPITests(APITestCase):
     """Tests for health check endpoints"""
@@ -547,11 +583,11 @@ class HealthCheckAPITests(APITestCase):
         """Test basic liveness check"""
         response = self.client.get('/health/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['status'], 'healthy')
+        self.assertEqual(response.json()['status'], 'healthy')
 
     def test_readiness_check(self):
         """Test readiness check"""
         response = self.client.get('/health/ready/')
         # Should return 200 when DB is available (in test environment)
         self.assertIn(response.status_code, [200, 503])
-        self.assertIn('checks', response.data)
+        self.assertIn('checks', response.json())

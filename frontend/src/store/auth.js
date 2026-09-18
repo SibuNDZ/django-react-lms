@@ -5,10 +5,17 @@ const useAuthStore = create((set, get) => ({
   allUserData: null,
   loading: false,
 
-  user: () => ({
-    user_id: get().allUserData?.user_id || null,
-    username: get().allUserData?.username || null,
-  }),
+  user: () => {
+    const data = get().allUserData;
+    if (!data) return null;
+    return {
+      user_id: data.user_id || null,
+      username: data.username || null,
+      email: data.email || null,
+      full_name: data.full_name || null,
+      role: data.role || "student",
+    };
+  },
 
   setUser: (user) =>
     set({
@@ -18,6 +25,8 @@ const useAuthStore = create((set, get) => ({
   setLoading: (loading) => set({ loading }),
 
   isLoggedIn: () => get().allUserData !== null,
+
+  isInstructor: () => get().allUserData?.role === "instructor",
 }));
 
 

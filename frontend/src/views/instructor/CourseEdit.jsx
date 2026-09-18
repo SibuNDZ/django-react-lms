@@ -9,7 +9,7 @@ import BaseFooter from "../partials/BaseFooter";
 import { Link, useParams } from "react-router-dom";
 
 import useAxios from "../../utils/useAxios";
-import UserData from "../plugin/UserData";
+import { asList } from "../../utils/lmsApi";
 import Swal from "sweetalert2";
 import Toast from "../plugin/Toast";
 
@@ -39,16 +39,34 @@ function CourseEdit() {
 
   const fetchCourseDetail = () => {
     useAxios()
-      .get(`course/category/`)
+      .get(`categories/`)
       .then((res) => {
-        setCategory(res.data);
+        setCategory(asList(res.data));
       });
 
     useAxios()
-      .get(`teacher/course-detail/${param.course_id}/`)
+      .get(`instructor/courses/${param.course_id}/`)
       .then((res) => {
-        setCourse(res.data);
-        setVariants(res.data.curriculum);
+        setCourse({
+          ...res.data,
+          category: res.data.category_id || res.data.category?.id || 0,
+          image: { preview: res.data.thumbnail },
+        });
+        setVariants(
+          (res.data.sections || []).map((section) => ({
+            id: section.id,
+            section_id: section.section_id,
+            title: section.title,
+            items: (section.lessons || []).map((lesson) => ({
+              id: lesson.id,
+              lesson_id: lesson.lesson_id,
+              title: lesson.title,
+              description: lesson.description || "",
+              preview: lesson.is_free_preview,
+              file: "",
+            })),
+          }))
+        );
         setCKEditorData(res.data.description);
       });
   };
@@ -140,18 +158,17 @@ function CourseEdit() {
     updatedVariants.splice(index, 1);
     setVariants(updatedVariants);
 
-    useAxios()
-      .delete(
-        `teacher/course/variant-delete/${variantId}/${UserData()?.teacher_id}/${param.course_id}/`
-      )
-      .then((res) => {
-        console.log(res.data);
-        fetchCourseDetail();
-        Toast().fire({
-          icon: "success",
-          title: "Lecture deleted",
+    if (variantId) {
+      useAxios()
+        .delete(`instructor/sections/${variantId}/`)
+        .then((res) => {
+          fetchCourseDetail();
+          Toast().fire({
+            icon: "success",
+            title: "Lecture deleted",
+          });
         });
-      });
+    }
   };
 
   const addItem = (variantIndex) => {
@@ -171,18 +188,17 @@ function CourseEdit() {
     updatedVariants[variantIndex].items.splice(itemIndex, 1);
     setVariants(updatedVariants);
 
-    useAxios()
-      .delete(
-        `teacher/course/variant-item-delete/${variantId}/${itemId}/${UserData()?.teacher_id}/${param.course_id}/`
-      )
-      .then((res) => {
-        console.log(res.data);
-        fetchCourseDetail();
-        Toast().fire({
-          icon: "success",
-          title: "Lesson Item deleted",
+    if (itemId) {
+      useAxios()
+        .delete(`instructor/lessons/${itemId}/`)
+        .then((res) => {
+          fetchCourseDetail();
+          Toast().fire({
+            icon: "success",
+            title: "Lesson Item deleted",
+          });
         });
-      });
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -190,42 +206,31 @@ function CourseEdit() {
     const formdata = new FormData();
     formdata.append("title", course.title);
     formdata.append("description", ckEdtitorData);
-    formdata.append("category", course.category);
+    if (course.category) {
+      formdata.append("category", course.category);
+    }
     formdata.append("price", course.price);
     formdata.append("level", course.level);
     formdata.append("language", course.language);
-    formdata.append("teacher", parseInt(UserData()?.teacher_id));
-    console.log(course.category);
 
-    if (course.file !== null || course.file !== "") {
-      formdata.append("file", course.file || "");
+    if (course.image?.file) {
+      formdata.append("thumbnail", course.image.file);
     }
 
-    if (course.image.file) {
-      formdata.append("image", course.image.file);
-    }
-
-    variants.forEach((variant, variantIndex) => {
-      Object.entries(variant).forEach(([key, value]) => {
-        console.log(`Key: ${key} = value: ${value}`);
-        formdata.append(
-          `variants[${variantIndex}][variant_${key}]`,
-          String(value)
-        );
-      });
-
-      variant.items.forEach((item, itemIndex) => {
-        Object.entries(item).forEach(([itemKey, itemValue]) => {
-          formdata.append(
-            `variants[${variantIndex}][items][${itemIndex}][${itemKey}]`,
-            itemValue
-          );
-        });
-      });
-    });
+    const sections = variants.map((variant) => ({
+      section_id: variant.section_id || "",
+      title: variant.title,
+      lessons: (variant.items || []).map((item) => ({
+        lesson_id: item.lesson_id || "",
+        title: item.title,
+        description: item.description || "",
+        is_free_preview: Boolean(item.preview),
+      })),
+    }));
+    formdata.append("sections", JSON.stringify(sections));
 
     const response = await useAxios().patch(
-      `teacher/course-update/${UserData()?.teacher_id}/${param.course_id}/`,
+      `instructor/courses/${param.course_id}/`,
       formdata
     );
     console.log(response.data);
@@ -355,12 +360,12 @@ function CourseEdit() {
                           className="form-select"
                           name="category"
                           onChange={handleCourseInputChange}
-                          value={course.category.id}
+                          value={course.category || ""}
                         >
                           <option value="">-------------</option>
                           {category?.map((c, index) => (
-                            <option key={index} value={c.id}>
-                              {c.title}
+                            <option key={c.id || index} value={c.id}>
+                              {c.name}
                             </option>
                           ))}
                         </select>
@@ -377,9 +382,9 @@ function CourseEdit() {
                           value={course.level}
                         >
                           <option value="">Select level</option>
-                          <option value="Beginner">Beginner</option>
-                          <option value="Intemediate">Intemediate</option>
-                          <option value="Advanced">Advanced</option>
+                          <option value="beginner">Beginner</option>
+                          <option value="intermediate">Intermediate</option>
+                          <option value="advanced">Advanced</option>
                         </select>
                       </div>
 
@@ -391,9 +396,9 @@ function CourseEdit() {
                           value={course.language}
                         >
                           <option value="">Select Language</option>
-                          <option value="English">English</option>
-                          <option value="Spanish">Spanish</option>
-                          <option value="French">French</option>
+                          <option value="en">English</option>
+                          <option value="es">Spanish</option>
+                          <option value="fr">French</option>
                         </select>
                       </div>
                       <div className="mb-3">
@@ -450,7 +455,7 @@ function CourseEdit() {
                               className="btn btn-danger ms-2"
                               type="button"
                               onClick={() =>
-                                removeVariant(variantIndex, variant.id)
+                                removeVariant(variantIndex, variant.section_id)
                               }
                             >
                               <i className="fas fa-trash"></i>
@@ -545,8 +550,8 @@ function CourseEdit() {
                                   removeItem(
                                     variantIndex,
                                     itemIndex,
-                                    variant.variant_id,
-                                    item.variant_item_id
+                                    variant.section_id,
+                                    item.lesson_id
                                   )
                                 }
                               >

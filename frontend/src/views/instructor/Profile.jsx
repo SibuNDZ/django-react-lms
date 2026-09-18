@@ -21,7 +21,7 @@ function Profile() {
 
   const fetchProfile = () => {
     useAxios()
-      .get(`user/profile/${UserData()?.user_id}/`)
+      .get(`user/profile/`)
       .then((res) => {
         console.log(res.data);
         setProfile(res.data);
@@ -61,7 +61,7 @@ function Profile() {
   const handleFormSubmit = async (e) => {
     e.preventDefault();
 
-    const res = await useAxios().get(`user/profile/${UserData()?.user_id}/`);
+    const res = await useAxios().get(`user/profile/`);
     const formdata = new FormData();
     if (profileData.image && profileData.image !== res.data.image) {
       formdata.append("image", profileData.image);
@@ -72,7 +72,7 @@ function Profile() {
     formdata.append("country", profileData.country);
 
     await useAxios()
-      .patch(`user/profile/${UserData()?.user_id}/`, formdata, {
+      .patch(`user/profile/`, formdata, {
         headers: {
           "Content-Type": "multipart/form-data",
         },

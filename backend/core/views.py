@@ -10,6 +10,7 @@ This module contains all the API endpoints for:
 - Wishlist management
 """
 
+from datetime import timedelta
 from django.shortcuts import get_object_or_404
 from django.db import transaction
 from django.db.models import Q, Avg, Sum, F
@@ -33,6 +34,7 @@ from .models import (
     Enrollment, LessonProgress, Cart, CartItem, Coupon,
     Order, OrderItem, CourseReview, Notification, Question, Answer, Wishlist
 )
+from .permissions import IsInstructor
 from api.serializer import (
     CategorySerializer, CourseListSerializer, CourseDetailSerializer,
     CourseEnrolledSerializer, LessonSerializer,
@@ -43,7 +45,8 @@ from api.serializer import (
     CourseReviewSerializer, CourseReviewCreateSerializer,
     QuestionSerializer, QuestionCreateSerializer,
     AnswerSerializer, AnswerCreateSerializer,
-    WishlistSerializer, NotificationSerializer, CouponSerializer
+    WishlistSerializer, NotificationSerializer, CouponSerializer,
+    InstructorCourseWriteSerializer
 )
 
 logger = logging.getLogger(__name__)
@@ -438,7 +441,9 @@ class CartStatsAPIView(APIView):
 
         return Response({
             "count": cart.item_count,
-            "total": float(cart.total)
+            "total": float(cart.total),
+            "price": float(cart.total),
+            "tax": 0,
         })
 
 
@@ -1191,7 +1196,7 @@ class InstructorDashboardAPIView(APIView):
     """
     Get instructor dashboard statistics.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsInstructor]
 
     def get(self, request):
         courses = Course.objects.filter(instructor=request.user)
@@ -1206,34 +1211,99 @@ class InstructorDashboardAPIView(APIView):
             order__status='completed'
         ).aggregate(total=Sum('price'))['total'] or 0
 
+        now = timezone.now()
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        this_month = OrderItem.objects.filter(
+            instructor=request.user,
+            order__status='completed',
+            order__completed_at__gte=month_start
+        ).aggregate(total=Sum('price'))['total'] or 0
+
         return Response({
             "total_courses": total_courses,
             "total_students": total_students,
             "total_reviews": total_reviews,
             "total_earnings": float(total_earnings),
+            "total_revenue": float(total_earnings),
+            "monthly_revenue": float(this_month),
+            "this_month": float(this_month),
         })
 
 
-class InstructorCoursesManageAPIView(generics.ListAPIView):
+class InstructorCoursesManageAPIView(generics.ListCreateAPIView):
     """
-    List instructor's own courses (all statuses).
+    List or create instructor's own courses.
     """
-    serializer_class = CourseListSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsInstructor]
     pagination_class = StandardResultsSetPagination
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return InstructorCourseWriteSerializer
+        return CourseListSerializer
 
     def get_queryset(self):
         return Course.objects.filter(
             instructor=self.request.user
         ).order_by('-created_at')
 
+    def perform_create(self, serializer):
+        serializer.save(instructor=self.request.user)
 
-class InstructorCouponsAPIView(generics.ListAPIView):
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        from api.serializer import InstructorCourseDetailSerializer
+        return Response(
+            InstructorCourseDetailSerializer(serializer.instance, context={'request': request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class InstructorCouponsAPIView(generics.ListCreateAPIView):
     """
-    List instructor's coupons.
+    List or create instructor's coupons.
     """
     serializer_class = CouponSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsInstructor]
 
     def get_queryset(self):
         return Coupon.objects.filter(instructor=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        code = request.data.get('code')
+        if not code:
+            return Response({"message": "Coupon code is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        discount = request.data.get('discount_value', request.data.get('discount', 0))
+        now = timezone.now()
+        valid_from = request.data.get('valid_from') or now
+        valid_until = request.data.get('valid_until') or (now + timedelta(days=365))
+
+        coupon = Coupon.objects.create(
+            instructor=request.user,
+            code=code,
+            discount_type=request.data.get('discount_type', 'percentage'),
+            discount_value=discount or 0,
+            valid_from=valid_from,
+            valid_until=valid_until,
+            is_active=True,
+        )
+        return Response(CouponSerializer(coupon).data, status=status.HTTP_201_CREATED)
+
+
+class StudentSummaryAPIView(APIView):
+    """Aggregated student dashboard stats for the authenticated user."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        enrollments = Enrollment.objects.filter(student=request.user)
+        total_courses = enrollments.count()
+        completed_lessons = sum(e.lessons_completed for e in enrollments)
+        achieved_certificates = enrollments.filter(certificate_issued=True).count()
+        return Response({
+            "total_courses": total_courses,
+            "completed_lessons": completed_lessons,
+            "achieved_certificates": achieved_certificates,
+        })

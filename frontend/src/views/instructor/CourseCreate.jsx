@@ -6,13 +6,14 @@ import Sidebar from "./Partials/Sidebar";
 import Header from "./Partials/Header";
 import BaseHeader from "../partials/BaseHeader";
 import BaseFooter from "../partials/BaseFooter";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import useAxios from "../../utils/useAxios";
-import UserData from "../plugin/UserData";
+import { asList } from "../../utils/lmsApi";
 import Swal from "sweetalert2";
 
 function CourseCreate() {
+  const navigate = useNavigate();
   const [course, setCourse] = useState({
     category: 0,
     file: "",
@@ -38,9 +39,9 @@ function CourseCreate() {
 
   useEffect(() => {
     useAxios()
-      .get(`course/category/`)
+      .get(`categories/`)
       .then((res) => {
-        setCategory(res.data);
+        setCategory(asList(res.data));
       });
   }, []);
 
@@ -151,43 +152,34 @@ function CourseCreate() {
     e.preventDefault();
     const formdata = new FormData();
     formdata.append("title", course.title);
-    formdata.append("image", course.image.file);
+    if (course.image?.file) {
+      formdata.append("thumbnail", course.image.file);
+    }
     formdata.append("description", ckEdtitorData);
-    formdata.append("category", course.category);
+    if (course.category) {
+      formdata.append("category", course.category);
+    }
     formdata.append("price", course.price);
     formdata.append("level", course.level);
     formdata.append("language", course.language);
-    formdata.append("teacher", parseInt(UserData()?.teacher_id));
-    console.log(course.category);
-    if (course.file !== null || course.file !== "") {
-      formdata.append("file", course.file || "");
-    }
+    formdata.append("status", "draft");
 
-    variants.forEach((variant, variantIndex) => {
-      Object.entries(variant).forEach(([key, value]) => {
-        console.log(`Key: ${key} = value: ${value}`);
-        formdata.append(
-          `variants[${variantIndex}][variant_${key}]`,
-          String(value)
-        );
-      });
+    const sections = variants.map((variant) => ({
+      title: variant.title,
+      lessons: (variant.items || []).map((item) => ({
+        title: item.title,
+        description: item.description || "",
+        is_free_preview: Boolean(item.preview),
+      })),
+    }));
+    formdata.append("sections", JSON.stringify(sections));
 
-      variant.items.forEach((item, itemIndex) => {
-        Object.entries(item).forEach(([itemKey, itemValue]) => {
-          formdata.append(
-            `variants[${variantIndex}][items][${itemIndex}][${itemKey}]`,
-            itemValue
-          );
-        });
-      });
-    });
-
-    const response = await useAxios().post(`teacher/course-create/`, formdata);
+    const response = await useAxios().post(`instructor/courses/`, formdata);
     console.log(response.data);
     Swal.fire({
       icon: "success",
       title: "Course Created Successfully"
-    })
+    }).then(() => navigate("/instructor/courses/"));
   };
 
   return (
@@ -312,8 +304,8 @@ function CourseCreate() {
                         >
                           <option value="">-------------</option>
                           {category?.map((c, index) => (
-                            <option key={index} value={c.id}>
-                              {c.title}
+                            <option key={c.id || index} value={c.id}>
+                              {c.name}
                             </option>
                           ))}
                         </select>
@@ -329,9 +321,9 @@ function CourseCreate() {
                           name="level"
                         >
                           <option value="">Select level</option>
-                          <option value="Beginner">Beginner</option>
-                          <option value="Intemediate">Intemediate</option>
-                          <option value="Advanced">Advanced</option>
+                          <option value="beginner">Beginner</option>
+                          <option value="intermediate">Intermediate</option>
+                          <option value="advanced">Advanced</option>
                         </select>
                       </div>
 
@@ -342,9 +334,9 @@ function CourseCreate() {
                           name="language"
                         >
                           <option value="">Select Language</option>
-                          <option value="English">English</option>
-                          <option value="Spanish">Spanish</option>
-                          <option value="French">French</option>
+                          <option value="en">English</option>
+                          <option value="es">Spanish</option>
+                          <option value="fr">French</option>
                         </select>
                       </div>
                       <div className="mb-3">

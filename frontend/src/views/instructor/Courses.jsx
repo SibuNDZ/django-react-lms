@@ -15,7 +15,7 @@ function Courses() {
 
     const fetchCourseData = () => {
       useAxios()
-        .get(`teacher/course-lists/${UserData()?.teacher_id}/`)
+        .get(`instructor/courses/`)
         .then((res) => {
           console.log(res.data);
           const courseData = res.data?.results || res.data || [];
@@ -30,6 +30,13 @@ function Courses() {
     useEffect(() => {
       fetchCourseData();
     }, []);
+
+    const handleDelete = (courseId) => {
+      useAxios()
+        .delete(`instructor/courses/${courseId}/`)
+        .then(() => fetchCourseData())
+        .catch((err) => console.log(err));
+    };
 
     const handleSearch = (event) => {
       const query = event.target.value.toLowerCase();
@@ -107,7 +114,7 @@ function Courses() {
                               <div>
                                 <a href="#">
                                   <img
-                                    src={c.image}
+                                    src={c.thumbnail}
                                     alt="course"
                                     className="rounded img-4by3-lg"
                                     style={{
@@ -152,19 +159,19 @@ function Courses() {
                             </div>
                           </td>
                           <td>
-                            <p className="mt-3">{c.students?.length}</p>
+      <p className="mt-3">{c.total_students || 0}</p>
                           </td>
                           <td>
                             <p className="mt-3 badge bg-success">{c.level}</p>
                           </td>
                           <td>
                             <p className="mt-3 badge bg-warning text-dark">
-                              Intermediate
+                              {c.status}
                             </p>
                           </td>
                           <td>
                             <p className="mt-3">
-                              {moment(c.date).format("DD MMM, YYYY")}
+                              {moment(c.created_at).format("DD MMM, YYYY")}
                             </p>
                           </td>
                           <td>
@@ -174,7 +181,10 @@ function Courses() {
                             >
                               <i className="fas fa-edit"></i>
                             </Link>
-                            <button className="btn btn-danger btn-sm mt-3 me-1">
+                            <button
+                              className="btn btn-danger btn-sm mt-3 me-1"
+                              onClick={() => handleDelete(c.course_id)}
+                            >
                               <i className="fas fa-trash"></i>
                             </button>
                             <button className="btn btn-secondary btn-sm mt-3 me-1">

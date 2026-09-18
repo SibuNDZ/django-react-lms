@@ -3,9 +3,17 @@ from django.contrib.auth.models import AbstractUser
 from django.db.models.signals import post_save
 
 class User(AbstractUser):
+    ROLE_STUDENT = "student"
+    ROLE_INSTRUCTOR = "instructor"
+    ROLE_CHOICES = [
+        (ROLE_STUDENT, "Student"),
+        (ROLE_INSTRUCTOR, "Instructor"),
+    ]
+
     username = models.CharField(unique=True, max_length=100)
     email = models.EmailField(unique=True)
     full_name = models.CharField(max_length=100, blank=True, default="")  # Fixed: removed unique=True
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=ROLE_STUDENT)
     otp = models.CharField(max_length=100, null=True, blank=True)
     refresh_token = models.CharField(max_length=1000, null=True, blank=True)
 
@@ -14,6 +22,9 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.email
+
+    def is_instructor(self):
+        return self.role == self.ROLE_INSTRUCTOR or self.is_staff or self.is_superuser
 
     def save(self, *args, **kwargs):
         email_username, _ = self.email.split("@")
