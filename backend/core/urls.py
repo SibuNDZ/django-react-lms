@@ -50,6 +50,8 @@ urlpatterns = [
     path('student/course/<slug:course_slug>/', views.CourseEnrollmentAPIView.as_view(), name='course-enrollment'),
     path('student/enroll-free/<str:course_id>/', views.FreeEnrollAPIView.as_view(), name='free-enroll'),
     path('student/progress/<str:enrollment_id>/', views.LessonProgressUpdateAPIView.as_view(), name='progress-update'),
+    path('student/enrollments/<str:enrollment_id>/notes/', views.CourseNoteListCreateAPIView.as_view(), name='note-list'),
+    path('student/enrollments/<str:enrollment_id>/notes/<str:note_id>/', views.CourseNoteDetailAPIView.as_view(), name='note-detail'),
 
     # ============== Q&A ==============
     path('qa/answer/<str:question_id>/', views.AnswerCreateAPIView.as_view(), name='answer-create'),

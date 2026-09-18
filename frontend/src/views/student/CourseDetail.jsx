@@ -27,8 +27,8 @@ function CourseDetail() {
   });
   const [questions, setQuestions] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
-  const [createReview, setCreateReview] = useState({ rating: 1, review: "" });
-  const [studentReview, setStudentReview] = useState([]);
+  const [createReview, setCreateReview] = useState({ rating: "", review: "" });
+  const [studentReview, setStudentReview] = useState(null);
 
   const param = useParams();
   const lastElementRef = useRef();
@@ -80,6 +80,7 @@ function CourseDetail() {
         })),
       })),
       lectures,
+      note: enrollment.notes || [],
       completed_lesson: (enrollment.lesson_progress || [])
         .filter((progress) => progress.is_completed)
         .map((progress) => ({
@@ -96,15 +97,16 @@ function CourseDetail() {
       ]);
       setQuestions(asList(qaRes.data));
       const reviews = asList(reviewRes.data);
-      setStudentReview(reviews[0] || null);
+      const myId = UserData()?.user_id;
+      setStudentReview(
+        reviews.find((review) => review.student?.id === myId) || null
+      );
     }
   };
   useEffect(() => {
     fetchCourseDetail();
   }, []);
 
-  console.log(createReview?.rating);
-  // console.log(studentReview);
   const handleMarkLessonAsCompleted = (variantItemId) => {
     const key = `lecture_${variantItemId}`;
     setMarkAsCompletedStatus({
@@ -133,69 +135,48 @@ function CourseDetail() {
     });
   };
 
+  const notesUrl = `student/enrollments/${param.enrollment_id}/notes/`;
+
   const handleSubmitCreateNote = async (e) => {
     e.preventDefault();
-    const formdata = new FormData();
-
-    formdata.append("user_id", UserData()?.user_id);
-    formdata.append("enrollment_id", param.enrollment_id);
-    formdata.append("title", createNote.title);
-    formdata.append("note", createNote.note);
-
     try {
-      await useAxios()
-        .post(
-          `student/course-note/${UserData()?.user_id}/${param.enrollment_id}/`,
-          formdata
-        )
-        .then((res) => {
-          fetchCourseDetail();
-          handleNoteClose();
-          Toast().fire({
-            icon: "success",
-            title: "Note created",
-          });
-        });
+      await useAxios().post(notesUrl, {
+        title: createNote.title,
+        note: createNote.note,
+      });
+      setCreateNote({ title: "", note: "" });
+      fetchCourseDetail();
+      handleNoteClose();
+      Toast().fire({ icon: "success", title: "Note created" });
     } catch (error) {
-      console.log(error);
+      Toast().fire({ icon: "error", title: "Could not save note" });
     }
   };
 
-  const handleSubmitEditNote = (e, noteId) => {
+  const handleSubmitEditNote = async (e, noteId) => {
     e.preventDefault();
-    const formdata = new FormData();
-
-    formdata.append("user_id", UserData()?.user_id);
-    formdata.append("enrollment_id", param.enrollment_id);
-    formdata.append("title", createNote.title || selectedNote?.title);
-    formdata.append("note", createNote.note || selectedNote?.note);
-
-    useAxios()
-      .patch(
-        `student/course-note-detail/${UserData()?.user_id}/${param.enrollment_id}/${noteId}/`,
-        formdata
-      )
-      .then((res) => {
-        fetchCourseDetail();
-        Toast().fire({
-          icon: "success",
-          title: "Note updated",
-        });
+    try {
+      await useAxios().patch(`${notesUrl}${noteId}/`, {
+        title: createNote.title || selectedNote?.title,
+        note: createNote.note || selectedNote?.note,
       });
+      setCreateNote({ title: "", note: "" });
+      fetchCourseDetail();
+      handleNoteClose();
+      Toast().fire({ icon: "success", title: "Note updated" });
+    } catch (error) {
+      Toast().fire({ icon: "error", title: "Could not update note" });
+    }
   };
 
-  const handleDeleteNote = (noteId) => {
-    useAxios()
-      .delete(
-        `student/course-note-detail/${UserData()?.user_id}/${param.enrollment_id}/${noteId}/`
-      )
-      .then((res) => {
-        fetchCourseDetail();
-        Toast().fire({
-          icon: "success",
-          title: "Note deleted",
-        });
-      });
+  const handleDeleteNote = async (noteId) => {
+    try {
+      await useAxios().delete(`${notesUrl}${noteId}/`);
+      fetchCourseDetail();
+      Toast().fire({ icon: "success", title: "Note deleted" });
+    } catch (error) {
+      Toast().fire({ icon: "error", title: "Could not delete note" });
+    }
   };
 
   const handleMessageChange = (event) => {
@@ -262,46 +243,31 @@ function CourseDetail() {
     });
   };
 
+  const submitReview = async (rating, reviewText, successTitle) => {
+    try {
+      await useAxios().post(`courses/${course.course?.slug}/reviews/create/`, {
+        rating,
+        review_text: reviewText,
+      });
+      fetchCourseDetail();
+      Toast().fire({ icon: "success", title: successTitle });
+    } catch (error) {
+      Toast().fire({ icon: "error", title: "Could not save review" });
+    }
+  };
+
   const handleCreateReviewSubmit = (e) => {
     e.preventDefault();
-
-    useAxios()
-      .post(`courses/${course.course?.slug}/reviews/create/`, {
-        rating: createReview.rating,
-        review_text: createReview.review,
-      })
-      .then((res) => {
-        console.log(res.data);
-        fetchCourseDetail();
-        Toast().fire({
-          icon: "success",
-          title: "Review created",
-        });
-      });
+    submitReview(Number(createReview.rating) || 1, createReview.review, "Review created");
   };
 
   const handleUpdateReviewSubmit = (e) => {
     e.preventDefault();
-
-    const formdata = new FormData();
-    formdata.append("course", course.course?.id);
-    formdata.append("user", UserData()?.user_id);
-    formdata.append("rating", createReview.rating || studentReview?.rating);
-    formdata.append("review", createReview.review || studentReview?.review);
-
-    useAxios()
-      .patch(
-        `student/review-detail/${UserData()?.user_id}/${studentReview?.id}/`,
-        formdata
-      )
-      .then((res) => {
-        console.log(res.data);
-        fetchCourseDetail();
-        Toast().fire({
-          icon: "success",
-          title: "Review updated",
-        });
-      });
+    submitReview(
+      Number(createReview.rating) || studentReview?.rating,
+      createReview.review || studentReview?.review_text || "",
+      "Review updated"
+    );
   };
 
   return (
@@ -622,8 +588,8 @@ function CourseDetail() {
                                 </div>
                                 <div className="card-body p-0 pt-3">
                                   {/* Note item start */}
-                                  {course?.note?.map((n, index) => (
-                                    <div className="row g-4 p-3">
+                                  {course?.note?.map((n) => (
+                                    <div className="row g-4 p-3" key={n.note_id}>
                                       <div className="col-sm-11 col-xl-11 shadow p-3 m-3 rounded">
                                         <h5> {n.title}</h5>
                                         <p>{n.note}</p>
@@ -638,7 +604,7 @@ function CourseDetail() {
                                           </a>
                                           <a
                                             onClick={() =>
-                                              handleDeleteNote(n.id)
+                                              handleDeleteNote(n.note_id)
                                             }
                                             className="btn btn-danger mb-0"
                                           >
@@ -767,7 +733,7 @@ function CourseDetail() {
                                 <div className="card-header border-bottom p-0 pb-3">
                                   {/* Title */}
                                   <h4 className="mb-3 p-3">
-                                    Leave a Review {studentReview.rating}
+                                    Leave a Review
                                   </h4>
                                   <div className="mt-2">
                                     {!studentReview && (
@@ -782,9 +748,7 @@ function CourseDetail() {
                                             className="form-select js-choice"
                                             onChange={handleReviewChange}
                                             name="rating"
-                                            defaultValue={
-                                              studentReview.rating || 0
-                                            }
+                                            defaultValue={1}
                                           >
                                             <option value={1}>
                                               ★☆☆☆☆ (1/5)
@@ -812,10 +776,7 @@ function CourseDetail() {
                                             rows={3}
                                             onChange={handleReviewChange}
                                             name="review"
-                                            defaultValue={
-                                              studentReview.review ||
-                                              createReview.review
-                                            }
+                                            defaultValue={createReview.review}
                                           />
                                         </div>
                                         {/* Button */}
@@ -842,7 +803,8 @@ function CourseDetail() {
                                             className="form-select js-choice"
                                             onChange={handleReviewChange}
                                             name="rating"
-                                            value={course.review.rating}
+                                            key={studentReview.id}
+                                            defaultValue={studentReview.rating}
                                           >
                                             <option value={1}>
                                               ★☆☆☆☆ (1/5)
@@ -870,7 +832,7 @@ function CourseDetail() {
                                             rows={3}
                                             onChange={handleReviewChange}
                                             name="review"
-                                            defaultValue={studentReview.review}
+                                            defaultValue={studentReview.review_text}
                                           />
                                         </div>
                                         {/* Button */}
@@ -945,7 +907,7 @@ function CourseDetail() {
           <Modal.Title>Note: {selectedNote?.title}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <form onSubmit={(e) => handleSubmitEditNote(e, selectedNote?.id)}>
+          <form onSubmit={(e) => handleSubmitEditNote(e, selectedNote?.note_id)}>
             <div className="mb-3">
               <label htmlFor="exampleInputEmail1" className="form-label">
                 Note Title

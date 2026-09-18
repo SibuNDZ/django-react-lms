@@ -3,7 +3,7 @@ from .models import (
     Category, Course, Section, Lesson, LessonResource,
     Enrollment, LessonProgress, Cart, CartItem, Coupon,
     Order, OrderItem, CourseReview, Notification,
-    Question, Answer, Wishlist
+    Question, Answer, Wishlist, CourseNote
 )
 
 
@@ -251,3 +251,11 @@ class WishlistAdmin(admin.ModelAdmin):
     list_display = ['user', 'course', 'added_at']
     search_fields = ['user__email', 'course__title']
     list_filter = ['added_at']
+
+
+@admin.register(CourseNote)
+class CourseNoteAdmin(admin.ModelAdmin):
+    list_display = ['title', 'enrollment', 'created_at', 'updated_at']
+    search_fields = ['title', 'note', 'enrollment__student__email', 'enrollment__course__title']
+    list_filter = ['created_at']
+    readonly_fields = ['note_id', 'created_at', 'updated_at']

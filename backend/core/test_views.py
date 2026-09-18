@@ -17,7 +17,7 @@ import json
 from .models import (
     Category, Course, Section, Lesson,
     Enrollment, LessonProgress, Cart, CartItem, Coupon,
-    Order, OrderItem, CourseReview, Question, Answer, Wishlist
+    Order, OrderItem, CourseReview, Question, Answer, Wishlist, CourseNote
 )
 
 User = get_user_model()
@@ -485,6 +485,88 @@ class QAAPITests(BaseAPITestCase):
             {'content': 'Here is the answer'}
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+
+class CourseNoteAPITests(BaseAPITestCase):
+    """Tests for a student's private course notes"""
+
+    def setUp(self):
+        super().setUp()
+        self.enrollment = Enrollment.objects.create(
+            student=self.student, course=self.course
+        )
+        self.other_student = User.objects.create_user(
+            email='other@test.com', username='other', password='testpass123'
+        )
+        self.other_enrollment = Enrollment.objects.create(
+            student=self.other_student, course=self.course
+        )
+        self.list_url = f'/api/v1/student/enrollments/{self.enrollment.enrollment_id}/notes/'
+
+    def detail_url(self, note, enrollment=None):
+        enrollment = enrollment or self.enrollment
+        return f'/api/v1/student/enrollments/{enrollment.enrollment_id}/notes/{note.note_id}/'
+
+    def test_create_note(self):
+        self.authenticate_as_student()
+        response = self.client.post(self.list_url, {'title': 'Loops', 'note': 'for and while'})
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['title'], 'Loops')
+        self.assertTrue(response.data['note_id'])
+        self.assertEqual(CourseNote.objects.get().enrollment, self.enrollment)
+
+    def test_create_note_requires_fields(self):
+        self.authenticate_as_student()
+        response = self.client.post(self.list_url, {'title': ''})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_notes_appear_in_enrollment_detail(self):
+        CourseNote.objects.create(enrollment=self.enrollment, title='A', note='first')
+        self.authenticate_as_student()
+        response = self.client.get(f'/api/v1/student/enrollments/{self.enrollment.enrollment_id}/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([n['title'] for n in response.data['notes']], ['A'])
+
+    def test_list_only_returns_own_notes(self):
+        CourseNote.objects.create(enrollment=self.enrollment, title='mine', note='x')
+        CourseNote.objects.create(enrollment=self.other_enrollment, title='theirs', note='y')
+        self.authenticate_as_student()
+        response = self.client.get(self.list_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([n['title'] for n in response.data], ['mine'])
+
+    def test_update_and_delete_note(self):
+        note = CourseNote.objects.create(enrollment=self.enrollment, title='old', note='x')
+        self.authenticate_as_student()
+        response = self.client.patch(self.detail_url(note), {'title': 'new'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        note.refresh_from_db()
+        self.assertEqual(note.title, 'new')
+
+        response = self.client.delete(self.detail_url(note))
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(CourseNote.objects.filter(pk=note.pk).exists())
+
+    def test_cannot_touch_another_students_notes(self):
+        note = CourseNote.objects.create(enrollment=self.other_enrollment, title='theirs', note='y')
+        self.authenticate_as_student()
+        # Through the other student's enrollment the enrollment lookup fails
+        self.assertEqual(
+            self.client.get(self.detail_url(note, self.other_enrollment)).status_code,
+            status.HTTP_404_NOT_FOUND,
+        )
+        self.assertEqual(
+            self.client.get(
+                f'/api/v1/student/enrollments/{self.other_enrollment.enrollment_id}/notes/'
+            ).status_code,
+            status.HTTP_404_NOT_FOUND,
+        )
+        # Through the student's own enrollment a foreign note id is not found
+        self.assertEqual(self.client.delete(self.detail_url(note)).status_code, status.HTTP_404_NOT_FOUND)
+        self.assertTrue(CourseNote.objects.filter(pk=note.pk).exists())
+
+    def test_requires_authentication(self):
+        self.assertEqual(self.client.get(self.list_url).status_code, status.HTTP_401_UNAUTHORIZED)
 
 
 class WishlistAPITests(BaseAPITestCase):

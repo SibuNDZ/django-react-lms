@@ -32,7 +32,8 @@ from decimal import Decimal
 from .models import (
     Category, Course, Section, Lesson, LessonResource,
     Enrollment, LessonProgress, Cart, CartItem, Coupon,
-    Order, OrderItem, CourseReview, Notification, Question, Answer, Wishlist
+    Order, OrderItem, CourseReview, Notification, Question, Answer, Wishlist,
+    CourseNote
 )
 from .permissions import IsInstructor
 from api.serializer import (
@@ -41,7 +42,7 @@ from api.serializer import (
     CartSerializer, CartItemCreateSerializer,
     OrderSerializer, CouponApplySerializer,
     EnrollmentSerializer, EnrollmentDetailSerializer,
-    LessonProgressUpdateSerializer,
+    LessonProgressUpdateSerializer, CourseNoteSerializer,
     CourseReviewSerializer, CourseReviewCreateSerializer,
     QuestionSerializer, QuestionCreateSerializer,
     AnswerSerializer, AnswerCreateSerializer,
@@ -808,7 +809,7 @@ class EnrollmentDetailAPIView(generics.RetrieveAPIView):
         return Enrollment.objects.filter(
             student=self.request.user
         ).select_related('course', 'course__instructor').prefetch_related(
-            'course__sections__lessons', 'lesson_progress'
+            'course__sections__lessons', 'lesson_progress', 'notes'
         )
 
 
@@ -971,6 +972,46 @@ class LessonProgressUpdateAPIView(APIView):
             "progress_percentage": enrollment.progress_percentage,
             "lessons_completed": enrollment.lessons_completed
         })
+
+
+# ============== Course Note Views ==============
+
+class StudentEnrollmentScopedMixin:
+    """Resolve the enrollment from the URL and refuse anyone but its student."""
+
+    def get_enrollment(self):
+        return get_object_or_404(
+            Enrollment,
+            enrollment_id=self.kwargs['enrollment_id'],
+            student=self.request.user,
+        )
+
+
+class CourseNoteListCreateAPIView(StudentEnrollmentScopedMixin, generics.ListCreateAPIView):
+    """
+    List or create the authenticated student's notes on one enrollment.
+    """
+    serializer_class = CourseNoteSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
+
+    def get_queryset(self):
+        return CourseNote.objects.filter(enrollment=self.get_enrollment())
+
+    def perform_create(self, serializer):
+        serializer.save(enrollment=self.get_enrollment())
+
+
+class CourseNoteDetailAPIView(StudentEnrollmentScopedMixin, generics.RetrieveUpdateDestroyAPIView):
+    """
+    Retrieve, update or delete one of the authenticated student's notes.
+    """
+    serializer_class = CourseNoteSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'note_id'
+
+    def get_queryset(self):
+        return CourseNote.objects.filter(enrollment=self.get_enrollment())
 
 
 # ============== Review Views ==============

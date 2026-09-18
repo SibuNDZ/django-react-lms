@@ -634,3 +634,28 @@ class Wishlist(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.course.title}"
+
+
+class CourseNote(models.Model):
+    """Private study notes a student keeps against one of their enrollments"""
+    note_id = models.CharField(max_length=20, unique=True, blank=True)
+    enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE, related_name='notes')
+    title = models.CharField(max_length=255)
+    note = models.TextField()
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['enrollment', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.enrollment.student.email} - {self.title}"
+
+    def save(self, *args, **kwargs):
+        if not self.note_id:
+            self.note_id = shortuuid.uuid()[:10].upper()
+        super().save(*args, **kwargs)

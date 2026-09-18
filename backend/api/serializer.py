@@ -9,7 +9,8 @@ from userauths.models import Profile, User
 from core.models import (
     Category, Course, Section, Lesson, LessonResource,
     Enrollment, LessonProgress, Cart, CartItem, Coupon,
-    Order, OrderItem, CourseReview, Notification, Question, Answer, Wishlist
+    Order, OrderItem, CourseReview, Notification, Question, Answer, Wishlist,
+    CourseNote
 )
 
 
@@ -325,10 +326,20 @@ class EnrollmentSerializer(serializers.ModelSerializer):
         ]
 
 
+class CourseNoteSerializer(serializers.ModelSerializer):
+    """A student's private note on an enrollment"""
+
+    class Meta:
+        model = CourseNote
+        fields = ['id', 'note_id', 'title', 'note', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'note_id', 'created_at', 'updated_at']
+
+
 class EnrollmentDetailSerializer(serializers.ModelSerializer):
-    """Detailed enrollment with full course content and progress"""
+    """Detailed enrollment with full course content, progress and notes"""
     course = CourseEnrolledSerializer(read_only=True)
     lesson_progress = LessonProgressSerializer(many=True, read_only=True)
+    notes = CourseNoteSerializer(many=True, read_only=True)
 
     class Meta:
         model = Enrollment
@@ -336,7 +347,7 @@ class EnrollmentDetailSerializer(serializers.ModelSerializer):
             'id', 'enrollment_id', 'course', 'status',
             'progress_percentage', 'lessons_completed', 'enrolled_at',
             'last_accessed', 'completed_at', 'certificate_issued',
-            'certificate_id', 'lesson_progress'
+            'certificate_id', 'lesson_progress', 'notes'
         ]
 
 
