@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import React, { useContext } from "react";
 import { ProfileContext } from "../../plugin/Context";
 
@@ -29,12 +30,12 @@ function Header() {
               </div>
             </div>
             <div>
-              <a
-                href="profile-edit.html"
+              <Link
+                to="/instructor/profile/"
                 className="btn btn-primary btn-sm d-none d-md-block"
               >
-                Account Setting <i className="fas fa-gear fa-spin"></i>
-              </a>
+                Account Setting <i className="fas fa-gear"></i>
+              </Link>
             </div>
           </div>
         </div>

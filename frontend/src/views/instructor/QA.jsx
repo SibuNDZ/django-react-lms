@@ -196,9 +196,7 @@ function QA() {
                         <img
                           className="avatar-img rounded-circle"
                           src={
-                            m.profile.image?.startsWith("http://127.0.0.1:8000")
-                              ? m.profile.image
-                              : `http://127.0.0.1:8000${m.profile.image}`
+                            m.profile.image
                           }
                           style={{
                             width: "40px",

@@ -15,6 +15,48 @@ from core.models import (
 )
 
 
+# ============== Media URL helpers ==============
+
+DEFAULT_AVATAR_STATIC = 'img/default-avatar.svg'
+COURSE_PLACEHOLDER_STATIC = 'img/course-placeholder.svg'
+
+
+def media_or_fallback(request, file_field, fallback_static):
+    """
+    Absolute URL for an uploaded file, or an absolute URL to a bundled static
+    placeholder when nothing usable was uploaded (no file, or a default file
+    name that does not exist in storage, such as a fresh profile's
+    default-user.jpg).
+    """
+    from django.templatetags.static import static
+
+    if file_field and file_field.name:
+        try:
+            exists = file_field.storage.exists(file_field.name)
+        except Exception:
+            exists = False
+        if exists:
+            if settings.USE_S3:
+                return build_presigned_url(file_field.name)
+            url = file_field.url
+            return request.build_absolute_uri(url) if request else url
+    url = static(fallback_static)
+    return request.build_absolute_uri(url) if request else url
+
+
+class ThumbnailFallbackMixin:
+    """Serialize `thumbnail` as an absolute URL with a placeholder when missing."""
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if 'thumbnail' in data:
+            data['thumbnail'] = media_or_fallback(
+                self.context.get('request'), getattr(instance, 'thumbnail', None),
+                COURSE_PLACEHOLDER_STATIC,
+            )
+        return data
+
+
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
@@ -82,6 +124,13 @@ class ProfileSerializer(serializers.ModelSerializer):
         model = Profile
         fields = ['id', 'user', 'image', 'full_name', 'country', 'about', 'date']
         read_only_fields = ['id', 'user', 'date']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['image'] = media_or_fallback(
+            self.context.get('request'), instance.image, DEFAULT_AVATAR_STATIC
+        )
+        return data
 
 
 # ============== Category Serializers ==============
@@ -173,7 +222,7 @@ class SectionListSerializer(serializers.ModelSerializer):
         ]
 
 
-class CourseListSerializer(serializers.ModelSerializer):
+class CourseListSerializer(ThumbnailFallbackMixin, serializers.ModelSerializer):
     """Simplified course info for listings"""
     instructor = InstructorSerializer(read_only=True)
     category = CategorySerializer(read_only=True)
@@ -191,7 +240,7 @@ class CourseListSerializer(serializers.ModelSerializer):
         ]
 
 
-class CourseDetailSerializer(serializers.ModelSerializer):
+class CourseDetailSerializer(ThumbnailFallbackMixin, serializers.ModelSerializer):
     """Full course details for course page"""
     instructor = InstructorSerializer(read_only=True)
     category = CategorySerializer(read_only=True)
@@ -211,7 +260,7 @@ class CourseDetailSerializer(serializers.ModelSerializer):
         ]
 
 
-class CourseEnrolledSerializer(serializers.ModelSerializer):
+class CourseEnrolledSerializer(ThumbnailFallbackMixin, serializers.ModelSerializer):
     """Course details for enrolled students (includes full lesson content)"""
     instructor = InstructorSerializer(read_only=True)
     category = CategorySerializer(read_only=True)

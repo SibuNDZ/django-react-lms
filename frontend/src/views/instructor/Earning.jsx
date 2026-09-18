@@ -132,7 +132,7 @@ function Earning() {
                             >
                               <div className="d-flex align-items-center">
                                 <img
-                                  src={"http://127.0.0.1:8000" + b.course_image}
+                                  src={b.course_image}
                                   alt={b.course_title}
                                   style={{
                                     width: "100px",

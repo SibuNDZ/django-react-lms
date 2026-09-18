@@ -46,7 +46,7 @@ RUN mkdir -p /app/static /app/media /app/logs && \
 USER appuser
 
 # Collect static files
-RUN python manage.py collectstatic --noinput --clear 2>/dev/null || true
+RUN SECRET_KEY=build-only-not-used DEBUG=False ALLOWED_HOSTS=localhost python manage.py collectstatic --noinput --clear
 
 # Expose port
 EXPOSE 8000

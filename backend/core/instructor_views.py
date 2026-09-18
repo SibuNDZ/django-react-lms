@@ -3,7 +3,9 @@
 from decimal import Decimal
 
 from django.db.models import Sum, Count
+from django.conf import settings
 from django.shortcuts import get_object_or_404
+from django.templatetags.static import static
 
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
@@ -196,7 +198,10 @@ class InstructorBestCoursesAPIView(APIView):
         data = []
         for row in rows:
             thumbnail = row.get('course__thumbnail')
-            image = request.build_absolute_uri(f"/media/{thumbnail}") if thumbnail else None
+            if thumbnail:
+                image = request.build_absolute_uri(f"{settings.MEDIA_URL}{thumbnail}")
+            else:
+                image = request.build_absolute_uri(static('img/course-placeholder.svg'))
             data.append({
                 "course_title": row['course__title'],
                 "course_image": image,
