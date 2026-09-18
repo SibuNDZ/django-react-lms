@@ -302,6 +302,10 @@ REST_FRAMEWORK = {
 }
 
 # Logging configuration
+# The logs/ directory is gitignored, so it does not exist on fresh checkouts
+# (CI runners, new deploys). Create it before the file handler is configured.
+(BASE_DIR / 'logs').mkdir(parents=True, exist_ok=True)
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
