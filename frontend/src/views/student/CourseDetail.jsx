@@ -36,7 +36,11 @@ function CourseDetail() {
   const lastElementRef = useRef();
   // Play Lecture Modal
   const [show, setShow] = useState(false);
-  const handleClose = () => setShow(false);
+  const handleClose = () => {
+    setShow(false);
+    // Grades and quiz outcomes can change while the modal is open
+    fetchCourseDetail();
+  };
   const handleShow = (variant_item) => {
     setShow(true);
     setVariantItem(variant_item);
