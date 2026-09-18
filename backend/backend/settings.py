@@ -36,7 +36,7 @@ if RAILWAY_STATIC_URL:
     from urllib.parse import urlparse
     ALLOWED_HOSTS.append(urlparse(RAILWAY_STATIC_URL).netloc)
 # Also allow .railway.app domains
-ALLOWED_HOSTS.extend([".railway.app", ".up.railway.app"])
+ALLOWED_HOSTS.extend([".railway.app", ".up.railway.app", "healthcheck.railway.app"])
 if DEBUG:
     for host in ("localhost", "127.0.0.1"):
         if host not in ALLOWED_HOSTS:

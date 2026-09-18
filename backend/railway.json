@@ -11,6 +11,6 @@
     "restartPolicyMaxRetries": 10,
     "healthcheckPath": "/health/",
     "healthcheckTimeout": 180,
-    "startCommand": "python manage.py migrate --noinput && gunicorn --bind 0.0.0.0:${PORT:-8000} --workers 2 --threads 4 --worker-class gthread --timeout 120 --access-logfile - --error-logfile - backend.wsgi:application"
+    "startCommand": "echo \"[start] PORT=[$PORT] uid=$(id -u) cwd=$(pwd)\" && python manage.py migrate --noinput && echo \"[start] migrations done, launching gunicorn on ${PORT:-8000}\" && exec gunicorn --bind 0.0.0.0:${PORT:-8000} --workers 2 --threads 4 --worker-class gthread --timeout 120 --log-level info --access-logfile - --error-logfile - backend.wsgi:application"
   }
 }
