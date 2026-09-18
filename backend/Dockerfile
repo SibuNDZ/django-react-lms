@@ -56,4 +56,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/')" || exit 1
 
 # Migrate then serve (see start.sh)
-CMD ["/app/start.sh"]
+CMD ["sh", "/app/start.sh"]
