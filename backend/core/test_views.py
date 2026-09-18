@@ -168,6 +168,13 @@ class CartAPITests(BaseAPITestCase):
         response = self.client.get('/api/v1/cart/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    def test_unknown_anonymous_cart_id_is_an_empty_cart(self):
+        """The frontend generates a cart id before anything is added"""
+        response = self.client.get('/api/v1/cart/does-not-exist/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['items'], [])
+        self.assertEqual(response.data['item_count'], 0)
+
     def test_add_to_cart(self):
         """Test adding course to cart"""
         self.authenticate_as_student()

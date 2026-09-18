@@ -326,7 +326,14 @@ class CartAPIView(APIView):
                 defaults={'cart_id': shortuuid.uuid()}
             )
         elif cart_id:
-            cart = get_object_or_404(Cart, cart_id=cart_id)
+            # The frontend generates a cart id before anything is added, so an
+            # unknown id is an empty cart, not an error.
+            cart = Cart.objects.filter(cart_id=cart_id).first()
+            if cart is None:
+                return Response(
+                    {"cart_id": cart_id, "items": [], "total": 0, "item_count": 0},
+                    status=status.HTTP_200_OK
+                )
         else:
             return Response(
                 {"items": [], "total": 0, "item_count": 0},
