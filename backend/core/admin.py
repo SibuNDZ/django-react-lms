@@ -3,7 +3,8 @@ from .models import (
     Category, Course, Section, Lesson, LessonResource,
     Enrollment, LessonProgress, Cart, CartItem, Coupon,
     Order, OrderItem, CourseReview, Notification,
-    Question, Answer, Wishlist, CourseNote
+    Question, Answer, Wishlist, CourseNote,
+    Quiz, QuizQuestion, QuizChoice, QuizAttempt, Assignment, AssignmentSubmission
 )
 
 
@@ -259,3 +260,61 @@ class CourseNoteAdmin(admin.ModelAdmin):
     search_fields = ['title', 'note', 'enrollment__student__email', 'enrollment__course__title']
     list_filter = ['created_at']
     readonly_fields = ['note_id', 'created_at', 'updated_at']
+
+
+class QuizChoiceInline(admin.TabularInline):
+    model = QuizChoice
+    extra = 2
+    fields = ['text', 'is_correct', 'order']
+
+
+class QuizQuestionInline(admin.StackedInline):
+    model = QuizQuestion
+    extra = 0
+    fields = ['text', 'question_type', 'points', 'order', 'explanation']
+    show_change_link = True
+
+
+@admin.register(Quiz)
+class QuizAdmin(admin.ModelAdmin):
+    list_display = ['title', 'lesson', 'pass_mark', 'max_attempts', 'time_limit_minutes', 'is_published']
+    list_filter = ['is_published', 'lesson__section__course']
+    search_fields = ['title', 'lesson__title', 'lesson__section__course__title']
+    readonly_fields = ['quiz_id', 'created_at', 'updated_at']
+    inlines = [QuizQuestionInline]
+
+
+@admin.register(QuizQuestion)
+class QuizQuestionAdmin(admin.ModelAdmin):
+    list_display = ['__str__', 'quiz', 'question_type', 'points', 'order']
+    list_filter = ['question_type', 'quiz']
+    search_fields = ['text', 'quiz__title']
+    readonly_fields = ['question_id']
+    inlines = [QuizChoiceInline]
+
+
+@admin.register(QuizAttempt)
+class QuizAttemptAdmin(admin.ModelAdmin):
+    list_display = ['attempt_id', 'quiz', 'enrollment', 'attempt_number', 'status', 'outcome', 'percentage', 'submitted_at']
+    list_filter = ['status', 'outcome', 'quiz']
+    search_fields = ['attempt_id', 'enrollment__student__email', 'quiz__title']
+    readonly_fields = [
+        'attempt_id', 'quiz', 'enrollment', 'attempt_number', 'started_at', 'submitted_at',
+        'answers', 'score', 'max_score', 'percentage', 'status', 'outcome'
+    ]
+
+
+@admin.register(Assignment)
+class AssignmentAdmin(admin.ModelAdmin):
+    list_display = ['title', 'lesson', 'max_score', 'pass_mark', 'due_date', 'allow_resubmission', 'is_published']
+    list_filter = ['is_published', 'allow_resubmission', 'lesson__section__course']
+    search_fields = ['title', 'lesson__title', 'lesson__section__course__title']
+    readonly_fields = ['assignment_id', 'created_at', 'updated_at']
+
+
+@admin.register(AssignmentSubmission)
+class AssignmentSubmissionAdmin(admin.ModelAdmin):
+    list_display = ['submission_id', 'assignment', 'enrollment', 'attempt_number', 'status', 'outcome', 'score', 'submitted_at', 'graded_by']
+    list_filter = ['status', 'outcome', 'assignment']
+    search_fields = ['submission_id', 'enrollment__student__email', 'assignment__title']
+    readonly_fields = ['submission_id', 'submitted_at', 'graded_at']

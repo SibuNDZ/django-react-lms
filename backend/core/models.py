@@ -659,3 +659,236 @@ class CourseNote(models.Model):
         if not self.note_id:
             self.note_id = shortuuid.uuid()[:10].upper()
         super().save(*args, **kwargs)
+
+
+# ============== Assessment Models ==============
+
+OUTCOME_CHOICES = [
+    ('pending', 'Pending'),
+    ('competent', 'Competent'),
+    ('not_yet_competent', 'Not Yet Competent'),
+]
+
+
+class Quiz(models.Model):
+    """An auto-marked quiz attached to a lesson of type 'quiz'"""
+    quiz_id = models.CharField(max_length=20, unique=True, blank=True)
+    lesson = models.OneToOneField(Lesson, on_delete=models.CASCADE, related_name='quiz')
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default='')
+    pass_mark = models.PositiveIntegerField(
+        default=70, validators=[MaxValueValidator(100)],
+        help_text="Percentage required to be marked competent"
+    )
+    max_attempts = models.PositiveIntegerField(default=0, help_text="0 = unlimited")
+    time_limit_minutes = models.PositiveIntegerField(default=0, help_text="0 = no limit")
+    shuffle_questions = models.BooleanField(default=False)
+    is_published = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = 'Quizzes'
+
+    def __str__(self):
+        return f"{self.lesson.title} - {self.title}"
+
+    @property
+    def total_questions(self):
+        return self.questions.count()
+
+    @property
+    def total_points(self):
+        return sum(q.points for q in self.questions.all())
+
+    def save(self, *args, **kwargs):
+        if not self.quiz_id:
+            self.quiz_id = shortuuid.uuid()[:10].upper()
+        super().save(*args, **kwargs)
+
+
+class QuizQuestion(models.Model):
+    QUESTION_TYPE_CHOICES = [
+        ('single', 'Single correct answer'),
+        ('multiple', 'Multiple correct answers'),
+        ('true_false', 'True or false'),
+    ]
+
+    question_id = models.CharField(max_length=20, unique=True, blank=True)
+    quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name='questions')
+    text = models.TextField()
+    question_type = models.CharField(max_length=20, choices=QUESTION_TYPE_CHOICES, default='single')
+    points = models.PositiveIntegerField(default=1)
+    order = models.PositiveIntegerField(default=0)
+    explanation = models.TextField(blank=True, default='', help_text="Shown after the attempt is graded")
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return self.text[:80]
+
+    def save(self, *args, **kwargs):
+        if not self.question_id:
+            self.question_id = shortuuid.uuid()[:10].upper()
+        super().save(*args, **kwargs)
+
+
+class QuizChoice(models.Model):
+    choice_id = models.CharField(max_length=20, unique=True, blank=True)
+    question = models.ForeignKey(QuizQuestion, on_delete=models.CASCADE, related_name='choices')
+    text = models.CharField(max_length=500)
+    is_correct = models.BooleanField(default=False)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return self.text[:80]
+
+    def save(self, *args, **kwargs):
+        if not self.choice_id:
+            self.choice_id = shortuuid.uuid()[:10].upper()
+        super().save(*args, **kwargs)
+
+
+class QuizAttempt(models.Model):
+    """One sitting of a quiz by an enrolled student; graded server-side on submit"""
+    STATUS_CHOICES = [
+        ('in_progress', 'In progress'),
+        ('submitted', 'Submitted'),
+    ]
+
+    attempt_id = models.CharField(max_length=20, unique=True, blank=True)
+    quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name='attempts')
+    enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE, related_name='quiz_attempts')
+    attempt_number = models.PositiveIntegerField(default=1)
+
+    started_at = models.DateTimeField(auto_now_add=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+
+    # {question_id: {"selected": [choice_id, ...], "correct": bool, "points_awarded": int}}
+    answers = models.JSONField(default=dict, blank=True)
+    score = models.DecimalField(max_digits=7, decimal_places=2, default=0)
+    max_score = models.DecimalField(max_digits=7, decimal_places=2, default=0)
+    percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='in_progress')
+    outcome = models.CharField(max_length=20, choices=OUTCOME_CHOICES, default='pending')
+
+    class Meta:
+        unique_together = ('quiz', 'enrollment', 'attempt_number')
+        ordering = ['-started_at']
+        indexes = [
+            models.Index(fields=['enrollment', 'quiz']),
+        ]
+
+    def __str__(self):
+        return f"{self.enrollment.student.email} - {self.quiz.title} #{self.attempt_number}"
+
+    @property
+    def expires_at(self):
+        if not self.quiz.time_limit_minutes or not self.started_at:
+            return None
+        from datetime import timedelta
+        return self.started_at + timedelta(minutes=self.quiz.time_limit_minutes)
+
+    @property
+    def is_expired(self):
+        expires_at = self.expires_at
+        if expires_at is None or self.status != 'in_progress':
+            return False
+        from django.utils import timezone
+        from datetime import timedelta
+        return timezone.now() > expires_at + timedelta(seconds=30)
+
+    def save(self, *args, **kwargs):
+        if not self.attempt_id:
+            self.attempt_id = shortuuid.uuid()[:10].upper()
+        super().save(*args, **kwargs)
+
+
+class Assignment(models.Model):
+    """A practical task attached to a lesson of type 'assignment', graded by the instructor"""
+    assignment_id = models.CharField(max_length=20, unique=True, blank=True)
+    lesson = models.OneToOneField(Lesson, on_delete=models.CASCADE, related_name='assignment')
+    title = models.CharField(max_length=255)
+    instructions = models.TextField()
+    max_score = models.PositiveIntegerField(default=100)
+    pass_mark = models.PositiveIntegerField(
+        default=50, validators=[MaxValueValidator(100)],
+        help_text="Percentage of max_score required to be marked competent"
+    )
+    due_date = models.DateTimeField(null=True, blank=True)
+    allow_resubmission = models.BooleanField(default=True)
+    allowed_file_types = models.CharField(
+        max_length=255, default='pdf,zip,ipynb,py,js,ts,csv,docx,md,txt',
+        help_text="Comma-separated extensions; blank allows any"
+    )
+    max_file_size_mb = models.PositiveIntegerField(default=25)
+    is_published = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.lesson.title} - {self.title}"
+
+    @property
+    def allowed_extensions(self):
+        return [ext.strip().lower().lstrip('.') for ext in self.allowed_file_types.split(',') if ext.strip()]
+
+    def save(self, *args, **kwargs):
+        if not self.assignment_id:
+            self.assignment_id = shortuuid.uuid()[:10].upper()
+        super().save(*args, **kwargs)
+
+
+class AssignmentSubmission(models.Model):
+    """A student's hand-in for an assignment, with the instructor's grading"""
+    STATUS_CHOICES = [
+        ('submitted', 'Submitted'),
+        ('graded', 'Graded'),
+    ]
+
+    submission_id = models.CharField(max_length=20, unique=True, blank=True)
+    assignment = models.ForeignKey(Assignment, on_delete=models.CASCADE, related_name='submissions')
+    enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE, related_name='assignment_submissions')
+    attempt_number = models.PositiveIntegerField(default=1)
+
+    file = models.FileField(upload_to='assignment_submissions/%Y/%m/', null=True, blank=True)
+    text_answer = models.TextField(blank=True, default='')
+    link = models.URLField(blank=True, default='')
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='submitted')
+    outcome = models.CharField(max_length=20, choices=OUTCOME_CHOICES, default='pending')
+    score = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)
+    feedback = models.TextField(blank=True, default='')
+    graded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='graded_submissions'
+    )
+    graded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ('assignment', 'enrollment', 'attempt_number')
+        ordering = ['-submitted_at']
+        indexes = [
+            models.Index(fields=['enrollment', 'assignment']),
+            models.Index(fields=['assignment', 'status']),
+        ]
+
+    def __str__(self):
+        return f"{self.enrollment.student.email} - {self.assignment.title} #{self.attempt_number}"
+
+    @property
+    def is_late(self):
+        return bool(self.assignment.due_date and self.submitted_at and self.submitted_at > self.assignment.due_date)
+
+    def save(self, *args, **kwargs):
+        if not self.submission_id:
+            self.submission_id = shortuuid.uuid()[:10].upper()
+        super().save(*args, **kwargs)

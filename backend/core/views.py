@@ -36,6 +36,7 @@ from .models import (
     CourseNote
 )
 from .permissions import IsInstructor
+from .progress import ASSESSED_LESSON_TYPES, complete_lesson, refresh_enrollment_progress
 from api.serializer import (
     CategorySerializer, CourseListSerializer, CourseDetailSerializer,
     CourseEnrolledSerializer, LessonSerializer,
@@ -932,17 +933,17 @@ class LessonProgressUpdateAPIView(APIView):
             Lesson, lesson_id=lesson_id, section__course=enrollment.course
         )
 
+        wants_completion = serializer.validated_data.get('is_completed', False)
+        if wants_completion and lesson.lesson_type in ASSESSED_LESSON_TYPES:
+            return Response(
+                {"message": "Quiz and assignment lessons are completed by passing the assessment"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         progress, created = LessonProgress.objects.get_or_create(
             enrollment=enrollment,
             lesson=lesson
         )
-
-        # Update progress fields
-        if 'is_completed' in serializer.validated_data:
-            if serializer.validated_data['is_completed'] and not progress.is_completed:
-                progress.is_completed = True
-                progress.completed_at = timezone.now()
-                enrollment.lessons_completed += 1
 
         if 'time_spent' in serializer.validated_data:
             progress.time_spent += serializer.validated_data['time_spent']
@@ -952,20 +953,10 @@ class LessonProgressUpdateAPIView(APIView):
 
         progress.save()
 
-        # Update enrollment progress percentage
-        total_lessons = enrollment.course.total_lessons
-        if total_lessons > 0:
-            enrollment.progress_percentage = int(
-                (enrollment.lessons_completed / total_lessons) * 100
-            )
-
-            # Check if course completed
-            if enrollment.progress_percentage >= 100:
-                enrollment.status = 'completed'
-                enrollment.completed_at = timezone.now()
-
-        enrollment.last_accessed = timezone.now()
-        enrollment.save()
+        if wants_completion:
+            complete_lesson(enrollment, lesson)
+        else:
+            refresh_enrollment_progress(enrollment)
 
         return Response({
             "message": "Progress updated",

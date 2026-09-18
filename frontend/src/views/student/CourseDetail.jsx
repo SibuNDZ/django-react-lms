@@ -8,6 +8,8 @@ import BaseHeader from "../partials/BaseHeader";
 import BaseFooter from "../partials/BaseFooter";
 import Sidebar from "./Partials/Sidebar";
 import Header from "./Partials/Header";
+import QuizPlayer from "./Partials/QuizPlayer";
+import AssignmentPanel from "./Partials/AssignmentPanel";
 import useAxios from "../../utils/useAxios";
 import { asList } from "../../utils/lmsApi";
 import UserData from "../plugin/UserData";
@@ -447,7 +449,15 @@ function CourseDetail() {
                                                   onClick={() => handleShow(l)}
                                                   className="btn btn-danger-soft btn-round btn-sm mb-0 stretched-link position-static"
                                                 >
-                                                  <i className="fas fa-play me-0" />
+                                                  <i
+                                                    className={`fas ${
+                                                      l.lesson_type === "quiz"
+                                                        ? "fa-question"
+                                                        : l.lesson_type === "assignment"
+                                                        ? "fa-upload"
+                                                        : "fa-play"
+                                                    } me-0`}
+                                                  />
                                                 </button>
                                                 <span className="d-inline-block text-truncate ms-2 mb-0 h6 fw-light w-100px w-sm-200px w-md-400px">
                                                   {l.title}
@@ -458,22 +468,43 @@ function CourseDetail() {
                                                   {l.content_duration ||
                                                     "0m 0s"}
                                                 </p>
-                                                <input
-                                                  type="checkbox"
-                                                  className="form-check-input ms-2"
-                                                  name=""
-                                                  id=""
-                                                  onChange={() =>
-                                                    handleMarkLessonAsCompleted(
-                                                      l.variant_item_id
+                                                {["quiz", "assignment"].includes(
+                                                  l.lesson_type
+                                                ) ? (
+                                                  <span
+                                                    className={`badge ms-2 ${
+                                                      course.completed_lesson?.some(
+                                                        (cl) => cl.variant_item.id === l.id
+                                                      )
+                                                        ? "bg-success"
+                                                        : "bg-secondary"
+                                                    }`}
+                                                  >
+                                                    {course.completed_lesson?.some(
+                                                      (cl) => cl.variant_item.id === l.id
                                                     )
-                                                  }
-                                                  checked={course.completed_lesson?.some(
-                                                    (cl) =>
-                                                      cl.variant_item.id ===
-                                                      l.id
-                                                  )}
-                                                />
+                                                      ? "Competent"
+                                                      : l.lesson_type === "quiz"
+                                                      ? "Quiz"
+                                                      : "Assignment"}
+                                                  </span>
+                                                ) : (
+                                                  <input
+                                                    type="checkbox"
+                                                    className="form-check-input ms-2"
+                                                    aria-label={`Mark ${l.title} complete`}
+                                                    onChange={() =>
+                                                      handleMarkLessonAsCompleted(
+                                                        l.variant_item_id
+                                                      )
+                                                    }
+                                                    checked={course.completed_lesson?.some(
+                                                      (cl) =>
+                                                        cl.variant_item.id ===
+                                                        l.id
+                                                    )}
+                                                  />
+                                                )}
                                               </div>
                                             </div>
                                             <hr />
@@ -868,6 +899,23 @@ function CourseDetail() {
           <Modal.Title>Lesson: {variantItem?.title}</Modal.Title>
         </Modal.Header>
       <Modal.Body>
+          {variantItem?.lesson_type === "quiz" ? (
+            <QuizPlayer
+              enrollmentId={param.enrollment_id}
+              lessonId={variantItem.lesson_id}
+              onCompleted={fetchCourseDetail}
+            />
+          ) : variantItem?.lesson_type === "assignment" ? (
+            <AssignmentPanel
+              enrollmentId={param.enrollment_id}
+              lessonId={variantItem.lesson_id}
+              onChange={fetchCourseDetail}
+            />
+          ) : variantItem?.lesson_type === "text" ? (
+            <div style={{ whiteSpace: "pre-wrap" }}>
+              {variantItem.content || variantItem.description}
+            </div>
+          ) : (
           <div className="video-shell">
             <div className="d-flex flex-wrap justify-content-between align-items-center mb-3">
               <span className="secure-badge">
@@ -893,6 +941,7 @@ function CourseDetail() {
               <span className="tool-pill"><i className="fas fa-download"></i> Downloads disabled</span>
             </div>
           </div>
+          )}
       </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={handleClose}>

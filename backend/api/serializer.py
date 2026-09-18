@@ -10,7 +10,8 @@ from core.models import (
     Category, Course, Section, Lesson, LessonResource,
     Enrollment, LessonProgress, Cart, CartItem, Coupon,
     Order, OrderItem, CourseReview, Notification, Question, Answer, Wishlist,
-    CourseNote
+    CourseNote, Quiz, QuizQuestion, QuizChoice, QuizAttempt,
+    Assignment, AssignmentSubmission
 )
 
 
@@ -593,3 +594,239 @@ def _sync_course_sections(course, sections_data):
     course.total_sections = course.sections.count()
     course.total_lessons = sum(s.lessons.count() for s in course.sections.all())
     course.save(update_fields=['total_sections', 'total_lessons'])
+
+
+# ============== Assessment Serializers ==============
+
+class QuizChoiceWriteSerializer(serializers.Serializer):
+    text = serializers.CharField(max_length=500)
+    is_correct = serializers.BooleanField(default=False)
+    order = serializers.IntegerField(required=False, min_value=0)
+
+
+class QuizQuestionWriteSerializer(serializers.Serializer):
+    text = serializers.CharField()
+    question_type = serializers.ChoiceField(
+        choices=QuizQuestion.QUESTION_TYPE_CHOICES, default='single'
+    )
+    points = serializers.IntegerField(min_value=1, default=1)
+    order = serializers.IntegerField(required=False, min_value=0)
+    explanation = serializers.CharField(required=False, allow_blank=True, default='')
+    choices = QuizChoiceWriteSerializer(many=True)
+
+    def validate(self, data):
+        choices = data['choices']
+        correct = [c for c in choices if c.get('is_correct')]
+        if len(choices) < 2:
+            raise serializers.ValidationError("Each question needs at least two choices")
+        if data['question_type'] == 'true_false' and len(choices) != 2:
+            raise serializers.ValidationError("True/false questions need exactly two choices")
+        if not correct:
+            raise serializers.ValidationError("Mark at least one choice as correct")
+        if data['question_type'] != 'multiple' and len(correct) != 1:
+            raise serializers.ValidationError("Single-answer questions need exactly one correct choice")
+        return data
+
+
+class QuizWriteSerializer(serializers.Serializer):
+    title = serializers.CharField(max_length=255)
+    description = serializers.CharField(required=False, allow_blank=True, default='')
+    pass_mark = serializers.IntegerField(min_value=0, max_value=100, default=70)
+    max_attempts = serializers.IntegerField(min_value=0, default=0)
+    time_limit_minutes = serializers.IntegerField(min_value=0, default=0)
+    shuffle_questions = serializers.BooleanField(default=False)
+    is_published = serializers.BooleanField(default=True)
+    questions = QuizQuestionWriteSerializer(many=True)
+
+    def validate_questions(self, value):
+        if not value:
+            raise serializers.ValidationError("A quiz needs at least one question")
+        return value
+
+
+class QuizChoiceStudentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = QuizChoice
+        fields = ['choice_id', 'text', 'order']
+
+
+class QuizChoiceInstructorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = QuizChoice
+        fields = ['choice_id', 'text', 'is_correct', 'order']
+
+
+class QuizQuestionStudentSerializer(serializers.ModelSerializer):
+    choices = QuizChoiceStudentSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = QuizQuestion
+        fields = ['question_id', 'text', 'question_type', 'points', 'order', 'choices']
+
+
+class QuizQuestionInstructorSerializer(serializers.ModelSerializer):
+    choices = QuizChoiceInstructorSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = QuizQuestion
+        fields = ['question_id', 'text', 'question_type', 'points', 'order', 'explanation', 'choices']
+
+
+class QuizStudentSerializer(serializers.ModelSerializer):
+    """Quiz as seen by a student: no answer keys, no explanations"""
+    questions = QuizQuestionStudentSerializer(many=True, read_only=True)
+    total_questions = serializers.IntegerField(read_only=True)
+    total_points = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Quiz
+        fields = [
+            'quiz_id', 'title', 'description', 'pass_mark', 'max_attempts',
+            'time_limit_minutes', 'shuffle_questions', 'total_questions',
+            'total_points', 'questions'
+        ]
+
+
+class QuizInstructorSerializer(serializers.ModelSerializer):
+    questions = QuizQuestionInstructorSerializer(many=True, read_only=True)
+    lesson_id = serializers.CharField(source='lesson.lesson_id', read_only=True)
+    total_questions = serializers.IntegerField(read_only=True)
+    total_points = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Quiz
+        fields = [
+            'quiz_id', 'lesson_id', 'title', 'description', 'pass_mark', 'max_attempts',
+            'time_limit_minutes', 'shuffle_questions', 'is_published',
+            'total_questions', 'total_points', 'questions', 'created_at', 'updated_at'
+        ]
+
+
+class QuizAttemptSerializer(serializers.ModelSerializer):
+    expires_at = serializers.DateTimeField(read_only=True)
+    student = serializers.SerializerMethodField()
+
+    class Meta:
+        model = QuizAttempt
+        fields = [
+            'attempt_id', 'attempt_number', 'status', 'outcome', 'score', 'max_score',
+            'percentage', 'started_at', 'submitted_at', 'expires_at', 'answers', 'student'
+        ]
+
+    def get_student(self, obj):
+        student = obj.enrollment.student
+        return {'id': student.id, 'email': student.email, 'full_name': student.full_name}
+
+
+class QuizSubmitSerializer(serializers.Serializer):
+    answers = serializers.DictField(
+        child=serializers.ListField(child=serializers.CharField(), allow_empty=True)
+    )
+
+
+class AssignmentWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Assignment
+        fields = [
+            'title', 'instructions', 'max_score', 'pass_mark', 'due_date',
+            'allow_resubmission', 'allowed_file_types', 'max_file_size_mb', 'is_published'
+        ]
+
+    def validate_max_score(self, value):
+        if value < 1:
+            raise serializers.ValidationError("max_score must be at least 1")
+        return value
+
+
+class AssignmentSerializer(serializers.ModelSerializer):
+    lesson_id = serializers.CharField(source='lesson.lesson_id', read_only=True)
+
+    class Meta:
+        model = Assignment
+        fields = [
+            'assignment_id', 'lesson_id', 'title', 'instructions', 'max_score', 'pass_mark',
+            'due_date', 'allow_resubmission', 'allowed_file_types', 'max_file_size_mb',
+            'is_published', 'created_at', 'updated_at'
+        ]
+
+
+class AssignmentSubmissionSerializer(serializers.ModelSerializer):
+    file = serializers.SerializerMethodField()
+    file_name = serializers.SerializerMethodField()
+    is_late = serializers.BooleanField(read_only=True)
+    max_score = serializers.IntegerField(source='assignment.max_score', read_only=True)
+    graded_by = serializers.SerializerMethodField()
+    student = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AssignmentSubmission
+        fields = [
+            'submission_id', 'attempt_number', 'file', 'file_name', 'text_answer', 'link',
+            'submitted_at', 'is_late', 'status', 'outcome', 'score', 'max_score',
+            'feedback', 'graded_by', 'graded_at', 'student'
+        ]
+
+    def get_file(self, obj):
+        if not obj.file:
+            return None
+        if settings.USE_S3:
+            return build_presigned_url(obj.file.name)
+        request = self.context.get("request")
+        return request.build_absolute_uri(obj.file.url) if request else obj.file.url
+
+    def get_file_name(self, obj):
+        return obj.file.name.rsplit('/', 1)[-1] if obj.file else None
+
+    def get_graded_by(self, obj):
+        if not obj.graded_by:
+            return None
+        return {'id': obj.graded_by.id, 'full_name': obj.graded_by.full_name}
+
+    def get_student(self, obj):
+        student = obj.enrollment.student
+        return {'id': student.id, 'email': student.email, 'full_name': student.full_name}
+
+
+class AssignmentSubmissionCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AssignmentSubmission
+        fields = ['file', 'text_answer', 'link']
+        extra_kwargs = {
+            'file': {'required': False, 'allow_null': True},
+            'text_answer': {'required': False, 'allow_blank': True},
+            'link': {'required': False, 'allow_blank': True},
+        }
+
+    def validate_file(self, value):
+        if value is None:
+            return value
+        assignment = self.context['assignment']
+        allowed = assignment.allowed_extensions
+        ext = value.name.rsplit('.', 1)[-1].lower() if '.' in value.name else ''
+        if allowed and ext not in allowed:
+            raise serializers.ValidationError(
+                f"File type .{ext or '?'} is not allowed; use one of: {', '.join(allowed)}"
+            )
+        if value.size > assignment.max_file_size_mb * 1024 * 1024:
+            raise serializers.ValidationError(
+                f"File exceeds the {assignment.max_file_size_mb} MB limit"
+            )
+        return value
+
+    def validate(self, data):
+        if not (data.get('file') or data.get('text_answer') or data.get('link')):
+            raise serializers.ValidationError("Provide a file, a written answer, or a link")
+        return data
+
+
+class GradeSubmissionSerializer(serializers.Serializer):
+    score = serializers.DecimalField(max_digits=7, decimal_places=2, min_value=0)
+    feedback = serializers.CharField(required=False, allow_blank=True, default='')
+
+    def validate_score(self, value):
+        assignment = self.context['assignment']
+        if value > assignment.max_score:
+            raise serializers.ValidationError(
+                f"Score cannot exceed the assignment maximum of {assignment.max_score}"
+            )
+        return value

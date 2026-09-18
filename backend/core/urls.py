@@ -5,6 +5,7 @@ Core LMS URL Configuration
 from django.urls import path
 from . import views
 from . import instructor_views
+from . import assessment_views
 
 urlpatterns = [
     # ============== Categories ==============
@@ -52,6 +53,20 @@ urlpatterns = [
     path('student/progress/<str:enrollment_id>/', views.LessonProgressUpdateAPIView.as_view(), name='progress-update'),
     path('student/enrollments/<str:enrollment_id>/notes/', views.CourseNoteListCreateAPIView.as_view(), name='note-list'),
     path('student/enrollments/<str:enrollment_id>/notes/<str:note_id>/', views.CourseNoteDetailAPIView.as_view(), name='note-detail'),
+
+    # ============== Assessments: student ==============
+    path('student/enrollments/<str:enrollment_id>/lessons/<str:lesson_id>/quiz/', assessment_views.StudentQuizAPIView.as_view(), name='student-quiz'),
+    path('student/enrollments/<str:enrollment_id>/lessons/<str:lesson_id>/quiz/attempts/', assessment_views.StudentQuizAttemptStartAPIView.as_view(), name='student-quiz-attempt-start'),
+    path('student/enrollments/<str:enrollment_id>/lessons/<str:lesson_id>/quiz/attempts/<str:attempt_id>/submit/', assessment_views.StudentQuizAttemptSubmitAPIView.as_view(), name='student-quiz-attempt-submit'),
+    path('student/enrollments/<str:enrollment_id>/lessons/<str:lesson_id>/assignment/', assessment_views.StudentAssignmentAPIView.as_view(), name='student-assignment'),
+    path('student/enrollments/<str:enrollment_id>/lessons/<str:lesson_id>/assignment/submissions/', assessment_views.StudentAssignmentSubmitAPIView.as_view(), name='student-assignment-submit'),
+
+    # ============== Assessments: instructor ==============
+    path('instructor/lessons/<str:lesson_id>/quiz/', assessment_views.InstructorQuizAPIView.as_view(), name='instructor-quiz'),
+    path('instructor/lessons/<str:lesson_id>/quiz/attempts/', assessment_views.InstructorQuizAttemptListAPIView.as_view(), name='instructor-quiz-attempts'),
+    path('instructor/lessons/<str:lesson_id>/assignment/', assessment_views.InstructorAssignmentAPIView.as_view(), name='instructor-assignment'),
+    path('instructor/lessons/<str:lesson_id>/assignment/submissions/', assessment_views.InstructorAssignmentSubmissionListAPIView.as_view(), name='instructor-assignment-submissions'),
+    path('instructor/submissions/<str:submission_id>/grade/', assessment_views.InstructorGradeSubmissionAPIView.as_view(), name='instructor-grade-submission'),
 
     # ============== Q&A ==============
     path('qa/answer/<str:question_id>/', views.AnswerCreateAPIView.as_view(), name='answer-create'),
