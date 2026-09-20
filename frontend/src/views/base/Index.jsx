@@ -322,9 +322,11 @@ function Index() {
                       </Link>
                       <p className="instructor-name">{course.instructor?.full_name || course.teacher?.full_name}</p>
                       <div className="rating">
-                        <span className="rating-score">{course.average_rating?.toFixed(1) || "4.5"}</span>
-                        <Rater total={5} rating={course.average_rating || 4.5} interactive={false} />
-                        <span className="rating-count">({course.reviews?.length || 0})</span>
+                        <span className="rating-score">
+                          {Number(course.average_rating) > 0 ? Number(course.average_rating).toFixed(1) : "New"}
+                        </span>
+                        <Rater total={5} rating={Number(course.average_rating) || 0} interactive={false} />
+                        <span className="rating-count">({course.total_reviews ?? course.reviews?.length ?? 0})</span>
                       </div>
                       <div className="d-flex justify-content-between align-items-center">
                         <div>

@@ -26,6 +26,7 @@ import StudentCourseDetail from "./views/student/CourseDetail";
 import Wishlist from "./views/student/Wishlist";
 import StudentProfile from "./views/student/Profile";
 import useAxios from "./utils/useAxios";
+import ErrorBoundary from "./layouts/ErrorBoundary";
 import StudentChangePassword from "./views/student/ChangePassword";
 import Dashboard from "./views/instructor/Dashboard";
 import Courses from "./views/instructor/Courses";
@@ -71,6 +72,7 @@ function App() {
       <ProfileContext.Provider value={[profile, setProfile]}>
         <BrowserRouter>
           <MainWrapper>
+            <ErrorBoundary>
             <Routes>
               <Route path="/register/" element={<Register />} />
               <Route path="/login/" element={<Login />} />
@@ -259,6 +261,7 @@ function App() {
                 }
               />
             </Routes>
+          </ErrorBoundary>
           </MainWrapper>
         </BrowserRouter>
       </ProfileContext.Provider>
