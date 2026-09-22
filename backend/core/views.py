@@ -340,7 +340,7 @@ class CartAPIView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        serializer = CartSerializer(cart)
+        serializer = CartSerializer(cart, context={'request': request})
         return Response(serializer.data)
 
 
@@ -505,7 +505,15 @@ class OrderCreateAPIView(APIView):
 
         logger.info(f"Order {order.order_id} created for user {request.user.email}")
 
-        serializer = OrderSerializer(order)
+        # Nothing to pay: provision access immediately instead of sending the
+        # learner to a payment page for R0.
+        if order.total == 0:
+            finalize_order(order, payment_method='free')
+            cart.delete()
+            order.refresh_from_db()
+            logger.info(f"Order {order.order_id} completed as free enrolment")
+
+        serializer = OrderSerializer(order, context={'request': request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -708,7 +716,7 @@ class PaymentSuccessAPIView(APIView):
             finalize_order(order, order.payment_method, order.payment_id)
 
             logger.info(f"Payment completed for order {order_oid}")
-            return Response({"message": "Payment Successfull", "order": OrderSerializer(order).data})
+            return Response({"message": "Payment Successfull", "order": OrderSerializer(order, context={'request': request}).data})
 
         return Response(
             {"message": "Payment Failed"},
@@ -732,7 +740,7 @@ class PaymentSuccessAPIView(APIView):
                     finalize_order(order, 'stripe', session.payment_intent)
 
                     logger.info(f"Payment completed for order {order_oid}")
-                    return Response({"message": "Payment Successfull", "order": OrderSerializer(order).data})
+                    return Response({"message": "Payment Successfull", "order": OrderSerializer(order, context={'request': request}).data})
             except stripe.error.StripeError as e:
                 logger.error(f"Stripe verification error: {str(e)}")
 

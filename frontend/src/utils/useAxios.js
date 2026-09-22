@@ -1,5 +1,5 @@
 import axios from "axios";
-import { getRefreshedToken, isAccessTokenExpired, setAuthUser } from "./auth";
+import { getRefreshedToken, isAccessTokenExpired, logout, setAuthUser } from "./auth";
 import { API_BASE_URL } from "./constants";
 import Cookies from "js-cookie";
 
@@ -29,8 +29,14 @@ const useAxios = () => {
       setAuthUser(response.access, response.refresh);
       req.headers.Authorization = `Bearer ${response.access}`;
     } catch (error) {
-      // Token refresh failed - user needs to login again
-      console.log("Token refresh failed, user needs to re-authenticate");
+      // The refresh token is gone or blacklisted: the session is over. Clear
+      // it so the app stops sending requests that can only get 401, and send
+      // the user to log in again.
+      logout();
+      if (!window.location.pathname.startsWith("/login")) {
+        window.location.assign(`/login/?next=${encodeURIComponent(window.location.pathname)}`);
+      }
+      throw error;
     }
     return req;
   });

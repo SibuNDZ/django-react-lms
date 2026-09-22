@@ -43,10 +43,18 @@ def media_or_fallback(request, file_field, fallback_static):
         if exists:
             if settings.USE_S3:
                 return build_presigned_url(file_field.name)
-            url = file_field.url
-            return request.build_absolute_uri(url) if request else url
-    url = static(fallback_static)
-    return request.build_absolute_uri(url) if request else url
+            return _absolute(request, file_field.url)
+    return _absolute(request, static(fallback_static))
+
+
+def _absolute(request, url):
+    """Absolute URL from a request, or from PUBLIC_API_ORIGIN when there is none."""
+    if url.startswith(("http://", "https://")):
+        return url
+    if request is not None:
+        return request.build_absolute_uri(url)
+    origin = getattr(settings, "PUBLIC_API_ORIGIN", "")
+    return f"{origin}{url}" if origin else url
 
 
 class ThumbnailFallbackMixin:
@@ -151,10 +159,23 @@ class CategorySerializer(serializers.ModelSerializer):
 # ============== Course Serializers ==============
 
 class InstructorSerializer(serializers.ModelSerializer):
-    """Simplified instructor info for course listings"""
+    """Public instructor card: name, avatar and bio"""
+    image = serializers.SerializerMethodField()
+    about = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'full_name']
+        fields = ['id', 'username', 'full_name', 'image', 'about']
+
+    def get_image(self, obj):
+        profile = getattr(obj, 'profile', None)
+        return media_or_fallback(
+            self.context.get('request'), getattr(profile, 'image', None), DEFAULT_AVATAR_STATIC
+        )
+
+    def get_about(self, obj):
+        profile = getattr(obj, 'profile', None)
+        return getattr(profile, 'about', '') or ''
 
 
 class LessonResourceSerializer(serializers.ModelSerializer):

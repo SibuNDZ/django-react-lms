@@ -67,11 +67,24 @@ function Cart() {
     formdata.append("cart_id", CartId());
 
     try {
-      await useAxios().post(`order/create/`, formdata).then((res) => {
-        navigate(`/checkout/${res.data.order_id}/`);
-      });
+      const res = await useAxios().post(`order/create/`, formdata);
+      if (res.data.status === "completed") {
+        // Free courses are provisioned immediately; no payment step.
+        setCartCount(0);
+        Toast().fire({ icon: "success", title: "You are enrolled. Happy learning!" });
+        navigate(`/student/courses/`);
+        return;
+      }
+      navigate(`/checkout/${res.data.order_id}/`);
     } catch (error) {
-      console.log(error);
+      const status = error?.response?.status;
+      const message = error?.response?.data?.message;
+      if (status === 401) {
+        Toast().fire({ icon: "warning", title: "Please log in to continue" });
+        navigate(`/login/?next=/cart/`);
+      } else {
+        Toast().fire({ icon: "error", title: message || "Could not create the order" });
+      }
     }
   };
 

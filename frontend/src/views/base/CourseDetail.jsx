@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import moment from "moment";
 import Swal from "sweetalert2";
 
@@ -18,9 +18,11 @@ function CourseDetail() {
   const [course, setCourse] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [addToCartBtn, setAddToCartBtn] = useState("Add To Cart");
+  const [enrolling, setEnrolling] = useState(false);
   const [cartCount, setCartCount] = useContext(CartContext);
 
   const param = useParams();
+  const navigate = useNavigate();
 
   const country = GetCurrentAddress().country;
   const userId = UserData()?.user_id;
@@ -58,8 +60,36 @@ function CourseDetail() {
       });
       setCartCount(count);
     } catch (error) {
-      console.log(error);
-      setAddToCartBtn("Add To Cart");
+      const message = error?.response?.data?.message || "Could not add to cart";
+      if (/already in cart/i.test(message)) {
+        setAddToCartBtn("Added To Cart");
+      } else {
+        setAddToCartBtn("Add To Cart");
+      }
+      Toast().fire({ icon: "info", title: message });
+    }
+  };
+
+  // Free courses skip the cart and checkout entirely.
+  const enrollFree = async (courseId) => {
+    if (!UserData()) {
+      navigate(`/login/?next=/course-detail/${param.slug}/`);
+      return;
+    }
+    setEnrolling(true);
+    try {
+      await useAxios().post(`student/enroll-free/${courseId}/`);
+      Toast().fire({ icon: "success", title: "You are enrolled. Happy learning!" });
+      navigate(`/student/courses/`);
+    } catch (error) {
+      const message = error?.response?.data?.message || "";
+      if (/already enrolled/i.test(message)) {
+        navigate(`/student/courses/`);
+      } else {
+        Toast().fire({ icon: "error", title: message || "Could not enrol" });
+      }
+    } finally {
+      setEnrolling(false);
     }
   };
 
@@ -349,7 +379,7 @@ function CourseDetail() {
                                 <div className="col-md-5">
                                   {/* Image */}
                                   <img
-                                    src={course.teacher.image}
+                                    src={course.teacher?.image || course.instructor?.image}
                                     className="img-fluid rounded-3"
                                     alt="instructor-image"
                                   />
@@ -1190,43 +1220,39 @@ function CourseDetail() {
                               className="card-img"
                               alt="course image"
                             />
+                            {course.intro_video && (
                             <div
                               className="m-auto rounded-2 mt-2 d-flex justify-content-center align-items-center"
                               style={{ backgroundColor: "#ededed" }}
                             >
-                              <a
+                              <button
+                                type="button"
                                 data-bs-toggle="modal"
-                                data-bs-target="#exampleModal"
-                                href="https://www.youtube.com/embed/tXHviS-4ygo"
+                                data-bs-target="#introVideoModal"
                                 className="btn btn-lg text-danger btn-round btn-white-shadow mb-0"
-                                data-glightbox=""
-                                data-gallery="course-video"
                               >
                                 <i className="fas fa-play" />
-                              </a>
+                              </button>
                               <span
                                 data-bs-toggle="modal"
-                                data-bs-target="#exampleModal"
+                                data-bs-target="#introVideoModal"
                                 className="fw-bold"
+                                role="button"
                               >
                                 Course Introduction Video
                               </span>
 
                               <div
                                 className="modal fade"
-                                id="exampleModal"
+                                id="introVideoModal"
                                 tabIndex={-1}
-                                aria-labelledby="exampleModalLabel"
-                                aria-hidden="true"
+                                aria-labelledby="introVideoModalLabel"
                               >
-                                <div className="modal-dialog">
+                                <div className="modal-dialog modal-lg">
                                   <div className="modal-content">
                                     <div className="modal-header">
-                                      <h1
-                                        className="modal-title fs-5"
-                                        id="exampleModalLabel"
-                                      >
-                                        Introduction Videos
+                                      <h1 className="modal-title fs-5" id="introVideoModalLabel">
+                                        Course introduction
                                       </h1>
                                       <button
                                         type="button"
@@ -1235,26 +1261,21 @@ function CourseDetail() {
                                         aria-label="Close"
                                       />
                                     </div>
-                                    <div className="modal-body">...</div>
-                                    <div className="modal-footer">
-                                      <button
-                                        type="button"
-                                        className="btn btn-secondary"
-                                        data-bs-dismiss="modal"
-                                      >
-                                        Close
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className="btn btn-primary"
-                                      >
-                                        Save changes
-                                      </button>
+                                    <div className="modal-body p-0">
+                                      <div className="ratio ratio-16x9">
+                                        <iframe
+                                          src={course.intro_video}
+                                          title="Course introduction video"
+                                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                          allowFullScreen
+                                        />
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
                               </div>
                             </div>
+                            )}
                           </div>
                           {/* Card body */}
                           <div className="card-body px-3">
@@ -1314,6 +1335,26 @@ function CourseDetail() {
                               </div>
                             </div>
                             {/* Buttons */}
+                            {course.is_free || Number(course.price) === 0 ? (
+                              <div className="mt-3">
+                                <button
+                                  type="button"
+                                  className="btn btn-success mb-0 w-100"
+                                  disabled={enrolling}
+                                  onClick={() => enrollFree(course?.course_id)}
+                                >
+                                  {enrolling ? (
+                                    <>
+                                      <i className="fas fa-spinner fa-spin"></i> Enrolling
+                                    </>
+                                  ) : (
+                                    <>
+                                      Enrol for free <i className="fas fa-arrow-right"></i>
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            ) : (
                             <div className="mt-3 d-sm-flex justify-content-sm-between ">
                               {addToCartBtn === "Add To Cart" && (
                                 <button
@@ -1359,6 +1400,7 @@ function CourseDetail() {
                                 <i className="fas fa-arrow-right"></i>
                               </Link>
                             </div>
+                            )}
                           </div>
                         </div>
                         {/* Video END */}

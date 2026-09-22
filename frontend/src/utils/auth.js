@@ -121,7 +121,8 @@ export const getRefreshedToken = async () => {
 export const isAccessTokenExpired = (access_token) => {
   try {
     const decodedToken = jwt_decode(access_token);
-    return decodedToken.exp < Date.now() / 1000;
+    // Treat a token as expired 30 seconds early so it cannot die mid-request
+    return decodedToken.exp < Date.now() / 1000 + 30;
   } catch (error) {
     console.log(error);
     return true;

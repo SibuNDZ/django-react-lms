@@ -576,6 +576,35 @@ class CourseNoteAPITests(BaseAPITestCase):
         self.assertEqual(self.client.get(self.list_url).status_code, status.HTTP_401_UNAUTHORIZED)
 
 
+class FreeOrderTests(BaseAPITestCase):
+    """A cart with only free courses completes immediately and enrols the learner"""
+
+    def test_free_cart_order_completes_and_enrols(self):
+        free_course = Course.objects.create(
+            title='Free Intro', description='x', category=self.category,
+            instructor=self.instructor, price=Decimal('0.00'), status='published'
+        )
+        cart = Cart.objects.create(user=self.student, cart_id='freecart')
+        CartItem.objects.create(cart=cart, course=free_course, price=Decimal('0.00'))
+
+        self.authenticate_as_student()
+        response = self.client.post('/api/v1/order/create/', {'cart_id': 'freecart'})
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertEqual(response.data['status'], 'completed')
+        self.assertTrue(Enrollment.objects.filter(student=self.student, course=free_course).exists())
+        self.assertFalse(Cart.objects.filter(cart_id='freecart').exists())
+        self.assertEqual(Order.objects.get(order_id=response.data['order_id']).payment_method, 'free')
+
+    def test_paid_cart_order_stays_pending(self):
+        cart = Cart.objects.create(user=self.student, cart_id='paidcart')
+        CartItem.objects.create(cart=cart, course=self.course, price=self.course.price)
+        self.authenticate_as_student()
+        response = self.client.post('/api/v1/order/create/', {'cart_id': 'paidcart'})
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertEqual(response.data['status'], 'pending')
+        self.assertFalse(Enrollment.objects.filter(student=self.student, course=self.course).exists())
+
+
 class WishlistAPITests(BaseAPITestCase):
     """Tests for Wishlist API endpoints"""
 

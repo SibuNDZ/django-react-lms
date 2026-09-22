@@ -37,6 +37,12 @@ if RAILWAY_STATIC_URL:
     ALLOWED_HOSTS.append(urlparse(RAILWAY_STATIC_URL).netloc)
 # Also allow .railway.app domains
 ALLOWED_HOSTS.extend([".railway.app", ".up.railway.app", "healthcheck.railway.app"])
+
+# Absolute origin of this API, used to build absolute URLs when a serializer
+# runs without a request (nested cart and order payloads).
+PUBLIC_API_ORIGIN = env("PUBLIC_API_ORIGIN", default="").rstrip("/") or (
+    f"https://{RAILWAY_STATIC_URL}" if RAILWAY_STATIC_URL else ""
+)
 if DEBUG:
     for host in ("localhost", "127.0.0.1"):
         if host not in ALLOWED_HOSTS:
