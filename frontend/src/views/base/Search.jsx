@@ -142,8 +142,8 @@ function Search() {
                         </h4>
                         <small>By: {c.instructor?.full_name || c.teacher?.full_name}</small> <br />
                         <small>
-                          {c.students?.length} Student
-                          {c.students?.length > 1 && "s"}
+                          {c.total_students ?? c.students?.length ?? 0} Student
+                          {(c.total_students ?? c.students?.length ?? 0) !== 1 && "s"}
                         </small>{" "}
                         <br />
                         <div className="lh-1 mt-3 d-flex">
@@ -152,9 +152,11 @@ function Search() {
                               <Rater total={5} rating={c.average_rating || 0} />
                             </span>
                           </span>
-                          <span className="text-warning">4.5</span>
+                          <span className="text-warning">
+                            {Number(c.average_rating) > 0 ? Number(c.average_rating).toFixed(1) : "New"}
+                          </span>
                           <span className="fs-6 ms-2">
-                            ({c.reviews?.length} Reviews)
+                            ({c.total_reviews ?? c.reviews?.length ?? 0} Reviews)
                           </span>
                         </div>
                       </div>
@@ -173,10 +175,10 @@ function Search() {
                               <i className="fas fa-shopping-cart text-primary text-white" />
                             </button>
                             <Link
-                              to={""}
+                              to={`/course-detail/${c.slug}/`}
                               className="text-inherit text-decoration-none btn btn-primary"
                             >
-                              Enroll Now{" "}
+                              {Number(c.price) === 0 ? "Enrol free" : "Enroll Now"}{" "}
                               <i className="fas fa-arrow-right text-primary align-middle me-2 text-white" />
                             </Link>
                           </div>

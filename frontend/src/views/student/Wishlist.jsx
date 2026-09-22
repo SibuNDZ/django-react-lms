@@ -158,7 +158,7 @@ function Wishlist() {
                                   <i className="fas fa-shopping-cart text-primary text-white" />
                                 </button>
                                 <Link
-                                  to={""}
+                                  to={`/course-detail/${w.course?.slug}/`}
                                   className="text-inherit text-decoration-none btn btn-primary"
                                 >
                                   Enroll Now{" "}
