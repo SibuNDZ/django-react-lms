@@ -25,7 +25,8 @@ function CourseDetail() {
   const [reviews, setReviews] = useState([]);
   const [reviewForm, setReviewForm] = useState({ rating: 5, text: "" });
   const [reviewBusy, setReviewBusy] = useState(false);
-  const myReview = reviews.find((r) => r.student?.id === userId) || null;
+  const currentUserId = UserData()?.user_id;
+  const myReview = reviews.find((r) => r.student?.id === currentUserId) || null;
 
   const fetchReviews = async () => {
     try {
