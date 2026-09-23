@@ -149,11 +149,18 @@ class ProfileSerializer(serializers.ModelSerializer):
 # ============== Category Serializers ==============
 
 class CategorySerializer(serializers.ModelSerializer):
+    """Flat category with its parent, so clients can build the tree themselves"""
     course_count = serializers.ReadOnlyField()
+    total_course_count = serializers.ReadOnlyField()
+    parent = serializers.SlugRelatedField(slug_field='slug', read_only=True)
+    parent_name = serializers.CharField(source='parent.name', read_only=True, default=None)
 
     class Meta:
         model = Category
-        fields = ['id', 'name', 'slug', 'description', 'icon', 'image', 'course_count']
+        fields = [
+            'id', 'name', 'slug', 'description', 'icon', 'image', 'order',
+            'parent', 'parent_name', 'course_count', 'total_course_count'
+        ]
 
 
 # ============== Course Serializers ==============

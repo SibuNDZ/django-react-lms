@@ -10,8 +10,8 @@ from .models import (
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ['name', 'slug', 'course_count', 'order', 'is_active']
-    list_filter = ['is_active']
+    list_display = ['__str__', 'slug', 'parent', 'course_count', 'order', 'is_active']
+    list_filter = ['is_active', 'parent']
     search_fields = ['name', 'description']
     prepopulated_fields = {'slug': ('name',)}
     ordering = ['order', 'name']

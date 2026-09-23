@@ -166,7 +166,7 @@ class CategoryListAPIView(generics.ListAPIView):
 
     Returns categories with their course counts.
     """
-    queryset = Category.objects.filter(is_active=True).order_by('order', 'name')
+    queryset = Category.objects.filter(is_active=True).select_related('parent').order_by('parent__order', 'parent__name', 'order', 'name')
     serializer_class = CategorySerializer
     permission_classes = [AllowAny]
 
@@ -215,7 +215,10 @@ class CourseListAPIView(generics.ListAPIView):
         # Category filter
         category = self.request.query_params.get('category')
         if category:
-            queryset = queryset.filter(category__slug=category)
+            # A top-level category includes the courses of its sub-categories
+            queryset = queryset.filter(
+                Q(category__slug=category) | Q(category__parent__slug=category)
+            )
 
         # Level filter
         level = self.request.query_params.get('level')

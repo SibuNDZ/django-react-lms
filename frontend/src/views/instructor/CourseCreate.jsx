@@ -305,7 +305,7 @@ function CourseCreate() {
                           <option value="">-------------</option>
                           {category?.map((c, index) => (
                             <option key={c.id || index} value={c.id}>
-                              {c.name}
+                              {c.parent_name ? `${c.parent_name} / ${c.name}` : c.name}
                             </option>
                           ))}
                         </select>

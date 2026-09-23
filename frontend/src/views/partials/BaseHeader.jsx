@@ -1,12 +1,26 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { CartContext } from "../plugin/Context";
 import { useAuthStore } from "../../store/auth";
 import { becomeInstructor } from "../../utils/auth";
+import apiInstance from "../../utils/axios";
 
 function BaseHeader() {
     const [cartCount, setCartCount] = useContext(CartContext);
     const [searchQuery, setSearchQuery] = useState("");
+    const [categoryTree, setCategoryTree] = useState([]);
+    useEffect(() => {
+        apiInstance
+            .get(`categories/`)
+            .then((res) => {
+                const items = res.data?.results || res.data || [];
+                const parents = items.filter((c) => !c.parent);
+                setCategoryTree(
+                    parents.map((p) => ({ ...p, children: items.filter((c) => c.parent === p.slug) }))
+                );
+            })
+            .catch(() => setCategoryTree([]));
+    }, []);
     const navigate = useNavigate();
 
     const handleSearchSubmit = (e) => {
@@ -65,44 +79,30 @@ function BaseHeader() {
                         >
                             Categories
                         </a>
-                        <ul className="dropdown-menu dropdown-menu-start" style={{ minWidth: '220px' }}>
-                            <li>
-                                <Link className="dropdown-item py-2" to="/search/?search=prompting">
-                                    <i className="fas fa-robot me-2 text-primary"></i>
-                                    Prompt Engineering
-                                </Link>
-                            </li>
-                            <li>
-                                <Link className="dropdown-item py-2" to="/search/?search=agentic">
-                                    <i className="fas fa-brain me-2 text-purple"></i>
-                                    Agentic AI
-                                </Link>
-                            </li>
-                            <li>
-                                <Link className="dropdown-item py-2" to="/search/?search=fullstack">
-                                    <i className="fas fa-layer-group me-2 text-success"></i>
-                                    Full Stack Development
-                                </Link>
-                            </li>
-                            <li><hr className="dropdown-divider" /></li>
-                            <li>
-                                <Link className="dropdown-item py-2" to="/search/?search=python">
-                                    <i className="fab fa-python me-2 text-info"></i>
-                                    Python
-                                </Link>
-                            </li>
-                            <li>
-                                <Link className="dropdown-item py-2" to="/search/?search=javascript">
-                                    <i className="fab fa-js-square me-2 text-warning"></i>
-                                    JavaScript
-                                </Link>
-                            </li>
-                            <li>
-                                <Link className="dropdown-item py-2" to="/search/?search=react">
-                                    <i className="fab fa-react me-2 text-info"></i>
-                                    React
-                                </Link>
-                            </li>
+                        <ul className="dropdown-menu dropdown-menu-start" style={{ minWidth: '260px', maxHeight: '70vh', overflowY: 'auto' }}>
+                            {categoryTree.length === 0 && (
+                                <li><span className="dropdown-item-text text-muted">No categories yet</span></li>
+                            )}
+                            {categoryTree.map((group, gi) => (
+                                <React.Fragment key={group.id}>
+                                    {gi > 0 && <li><hr className="dropdown-divider" /></li>}
+                                    <li>
+                                        <Link className="dropdown-item py-2 fw-semibold" to={`/search/?category=${group.slug}`}>
+                                            {group.name}
+                                            {group.total_course_count > 0 && (
+                                                <span className="badge bg-light text-dark ms-2">{group.total_course_count}</span>
+                                            )}
+                                        </Link>
+                                    </li>
+                                    {group.children.map((child) => (
+                                        <li key={child.id}>
+                                            <Link className="dropdown-item py-1 ps-4 small" to={`/search/?category=${child.slug}`}>
+                                                {child.name}
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </React.Fragment>
+                            ))}
                         </ul>
                     </div>
 

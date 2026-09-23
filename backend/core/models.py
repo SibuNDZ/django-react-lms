@@ -15,13 +15,24 @@ class Category(models.Model):
     image = models.ImageField(upload_to="category_images/", null=True, blank=True)
     order = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
+    parent = models.ForeignKey(
+        'self', on_delete=models.CASCADE, null=True, blank=True, related_name='children',
+        help_text="Leave empty for a top-level category"
+    )
 
     class Meta:
         verbose_name_plural = "Categories"
         ordering = ['order', 'name']
 
     def __str__(self):
-        return self.name
+        return f"{self.parent.name} / {self.name}" if self.parent_id else self.name
+
+    @property
+    def total_course_count(self):
+        """Published courses in this category and its sub-categories"""
+        return Course.objects.filter(status='published').filter(
+            models.Q(category=self) | models.Q(category__parent=self)
+        ).count()
 
     def save(self, *args, **kwargs):
         if not self.slug:

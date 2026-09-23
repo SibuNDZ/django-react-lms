@@ -5,6 +5,7 @@ Run with: python manage.py test core
 """
 
 from django.test import TestCase
+from rest_framework.test import APIClient
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.core.exceptions import ValidationError
@@ -643,3 +644,39 @@ class LessonResourceTests(BaseTestCase):
             title='Course Notes'
         )
         self.assertEqual(resource.lesson, self.lesson)
+
+class CategoryTreeTests(TestCase):
+    """Sub-categories, the seed command and filtering by a parent category"""
+
+    def test_seed_creates_marketing_tree_and_is_idempotent(self):
+        from io import StringIO
+        from django.core.management import call_command
+        call_command('seed_categories', stdout=StringIO())
+        marketing = Category.objects.get(name='Marketing')
+        self.assertIsNone(marketing.parent)
+        self.assertEqual(marketing.children.count(), 10)
+        self.assertEqual(Category.objects.get(name='WordPress').parent, marketing)
+        before = Category.objects.count()
+        call_command('seed_categories', stdout=StringIO())
+        self.assertEqual(Category.objects.count(), before)
+
+    def test_parent_category_filter_includes_children(self):
+        from django.contrib.auth import get_user_model
+        instructor = get_user_model().objects.create_user(
+            email='i@test.com', username='i', password='x', role='instructor'
+        )
+        parent = Category.objects.create(name='Marketing')
+        child = Category.objects.create(name='SEO', parent=parent)
+        Course.objects.create(title='SEO 101', description='x', category=child,
+                              instructor=instructor, price=0, status='published')
+        response = APIClient().get('/api/v1/courses/?category=marketing')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(parent.total_course_count, 1)
+        self.assertEqual(parent.course_count, 0)
+
+        listing = APIClient().get('/api/v1/categories/')
+        by_name = {c['name']: c for c in (listing.data if isinstance(listing.data, list) else listing.data['results'])}
+        self.assertEqual(by_name['SEO']['parent'], 'marketing')
+        self.assertEqual(by_name['SEO']['parent_name'], 'Marketing')
+
