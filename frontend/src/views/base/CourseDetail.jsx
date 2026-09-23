@@ -1,6 +1,8 @@
 import { useState, useEffect, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import moment from "moment";
+import Rater from "react-rater";
+import "react-rater/lib/react-rater.css";
 import Swal from "sweetalert2";
 
 import BaseHeader from "../partials/BaseHeader";
@@ -20,6 +22,47 @@ function CourseDetail() {
   const [addToCartBtn, setAddToCartBtn] = useState("Add To Cart");
   const [enrolling, setEnrolling] = useState(false);
   const [relatedCourses, setRelatedCourses] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const [reviewForm, setReviewForm] = useState({ rating: 5, text: "" });
+  const [reviewBusy, setReviewBusy] = useState(false);
+  const myReview = reviews.find((r) => r.student?.id === userId) || null;
+
+  const fetchReviews = async () => {
+    try {
+      const res = await useAxios().get(`courses/${param.slug}/reviews/`);
+      setReviews(res.data?.results || res.data || []);
+    } catch (error) {
+      setReviews([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchReviews();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [param.slug]);
+
+  useEffect(() => {
+    if (myReview) setReviewForm({ rating: myReview.rating, text: myReview.review_text || "" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myReview?.id]);
+
+  const submitReview = async (e) => {
+    e.preventDefault();
+    setReviewBusy(true);
+    try {
+      await useAxios().post(`courses/${param.slug}/reviews/create/`, {
+        rating: Number(reviewForm.rating),
+        review_text: reviewForm.text.trim(),
+      });
+      Toast().fire({ icon: "success", title: myReview ? "Review updated" : "Thanks for your review" });
+      await fetchReviews();
+      fetchCourse();
+    } catch (error) {
+      Toast().fire({ icon: "error", title: error?.response?.data?.message || "Could not save your review" });
+    } finally {
+      setReviewBusy(false);
+    }
+  };
   const [cartCount, setCartCount] = useContext(CartContext);
 
   const param = useParams();
@@ -244,41 +287,6 @@ function CourseDetail() {
                             </button>
                           </li>
                           {/* Tab item */}
-                          <li
-                            className="nav-item me-2 me-sm-4 d-none"
-                            role="presentation"
-                          >
-                            <button
-                              className="nav-link mb-2 mb-md-0"
-                              id="course-pills-tab-5"
-                              data-bs-toggle="pill"
-                              data-bs-target="#course-pills-5"
-                              type="button"
-                              role="tab"
-                              aria-controls="course-pills-5"
-                              aria-selected="false"
-                            >
-                              FAQs
-                            </button>
-                          </li>
-                          {/* Tab item */}
-                          <li
-                            className="nav-item me-2 me-sm-4 d-none"
-                            role="presentation"
-                          >
-                            <button
-                              className="nav-link mb-2 mb-md-0"
-                              id="course-pills-tab-6"
-                              data-bs-toggle="pill"
-                              data-bs-target="#course-pills-6"
-                              type="button"
-                              role="tab"
-                              aria-controls="course-pills-6"
-                              aria-selected="false"
-                            >
-                              Comment
-                            </button>
-                          </li>
                         </ul>
                       </div>
                       {/* Tabs END */}
@@ -313,906 +321,213 @@ function CourseDetail() {
                             role="tabpanel"
                             aria-labelledby="course-pills-tab-2"
                           >
-                            {/* Course accordion START */}
-                            <div
-                              className="accordion accordion-icon accordion-bg-light"
-                              id="accordionExample2"
-                            >
-                              {/* Item */}
-                              {course?.curriculum?.map((c, index) => (
-                                <div className="accordion-item mb-3">
-                                  <h6
-                                    className="accordion-header font-base"
-                                    id="heading-1"
-                                  >
+                            <div className="d-flex justify-content-between align-items-center mb-3">
+                              <h5 className="mb-0">Curriculum</h5>
+                              <small className="text-muted">
+                                {course.total_sections ?? course.curriculum?.length ?? 0} modules ·{" "}
+                                {course.total_lessons ?? 0} lessons
+                                {course.total_duration > 0 && ` · ${Math.round(course.total_duration / 60)} hours`}
+                              </small>
+                            </div>
+                            <div className="accordion accordion-icon accordion-bg-light" id="curriculumAccordion">
+                              {course?.curriculum?.map((section, index) => (
+                                <div className="accordion-item mb-3" key={section.variant_id}>
+                                  <h6 className="accordion-header font-base" id={`heading-${section.variant_id}`}>
                                     <button
-                                      className="accordion-button fw-bold rounded d-sm-flex d-inline-block collapsed"
+                                      className={`accordion-button fw-bold rounded d-sm-flex d-inline-block ${index > 0 ? "collapsed" : ""}`}
                                       type="button"
                                       data-bs-toggle="collapse"
-                                      data-bs-target={`#collapse-${c.variant_id}`}
-                                      aria-expanded="true"
-                                      aria-controls={`collapse-${c.variant_id}`}
+                                      data-bs-target={`#collapse-${section.variant_id}`}
+                                      aria-expanded={index === 0}
+                                      aria-controls={`collapse-${section.variant_id}`}
                                     >
-                                      {c.title}
+                                      {section.title}
+                                      <span className="small ms-0 ms-sm-2 text-muted fw-normal">
+                                        ({section.variant_items?.length || 0} lesson
+                                        {(section.variant_items?.length || 0) === 1 ? "" : "s"})
+                                      </span>
                                     </button>
                                   </h6>
                                   <div
-                                    id={`collapse-${c.variant_id}`}
-                                    className="accordion-collapse collapse show"
-                                    aria-labelledby="heading-1"
-                                    data-bs-parent="#accordionExample2"
+                                    id={`collapse-${section.variant_id}`}
+                                    className={`accordion-collapse collapse ${index === 0 ? "show" : ""}`}
+                                    aria-labelledby={`heading-${section.variant_id}`}
+                                    data-bs-parent="#curriculumAccordion"
                                   >
                                     <div className="accordion-body mt-3">
-                                      {/* Course lecture */}
-                                      {c.variant_items?.map((l, index) => (
-                                        <>
-                                          <div className="d-flex justify-content-between align-items-center">
-                                            <div className="position-relative d-flex align-items-center">
-                                              <a
-                                                href="#"
-                                                className="btn btn-danger-soft btn-round btn-sm mb-0 stretched-link position-static"
-                                              >
-                                                {l.preview === true ? (
-                                                  <i className="fas fa-play me-0" />
-                                                ) : (
-                                                  <i className="fas fa-lock me-0" />
-                                                )}
-                                              </a>
-                                              <span className="d-inline-block text-truncate ms-2 mb-0 h6 fw-light w-100px w-sm-200px w-md-400px">
-                                                {l.title}
-                                              </span>
+                                      {section.description && (
+                                        <p className="text-muted small mb-3">{section.description}</p>
+                                      )}
+                                      {section.variant_items?.map((lesson) => {
+                                        const icon =
+                                          lesson.lesson_type === "quiz" ? "fa-question" :
+                                          lesson.lesson_type === "assignment" ? "fa-upload" :
+                                          lesson.lesson_type === "text" ? "fa-file-alt" :
+                                          lesson.lesson_type === "resource" ? "fa-paperclip" : "fa-play";
+                                        const label =
+                                          lesson.lesson_type === "quiz" ? "Knowledge check" :
+                                          lesson.lesson_type === "assignment" ? "Graded practical" :
+                                          lesson.lesson_type === "text" ? "Reading" :
+                                          lesson.lesson_type === "resource" ? "Resource" : "Video";
+                                        return (
+                                          <div key={lesson.lesson_id}>
+                                            <div className="d-flex justify-content-between align-items-center">
+                                              <div className="d-flex align-items-center">
+                                                <span className={`btn btn-sm btn-round mb-0 ${lesson.is_free_preview ? "btn-success-soft" : "btn-light"}`}>
+                                                  <i className={`fas ${lesson.is_free_preview ? icon : "fa-lock"} me-0`} />
+                                                </span>
+                                                <span className="ms-2 mb-0 h6 fw-light">
+                                                  {lesson.title}
+                                                  <small className="text-muted d-block">
+                                                    {label}
+                                                    {lesson.is_free_preview && <span className="badge bg-success ms-2">Preview</span>}
+                                                  </small>
+                                                </span>
+                                              </div>
+                                              <p className="mb-0 text-muted small">
+                                                {lesson.duration ? `${lesson.duration}m` : ""}
+                                              </p>
                                             </div>
-                                            <p className="mb-0">
-                                              {c.content_duration}
-                                            </p>
+                                            <hr />
                                           </div>
-                                          <hr />
-                                        </>
-                                      ))}
+                                        );
+                                      })}
                                     </div>
                                   </div>
                                 </div>
                               ))}
+                              {(!course?.curriculum || course.curriculum.length === 0) && (
+                                <p className="text-muted">The curriculum for this course has not been published yet.</p>
+                              )}
                             </div>
-                            {/* Course accordion END */}
                           </div>
-                          {/* Content END */}
-                          {/* Content START */}
+
                           <div
                             className="tab-pane fade"
                             id="course-pills-3"
                             role="tabpanel"
                             aria-labelledby="course-pills-tab-3"
                           >
-                            {/* Card START */}
                             <div className="card mb-0 mb-md-4">
                               <div className="row g-0 align-items-center">
-                                <div className="col-md-5">
-                                  {/* Image */}
+                                <div className="col-md-3 p-3">
                                   <img
                                     src={course.teacher?.image || course.instructor?.image}
-                                    className="img-fluid rounded-3"
-                                    alt="instructor-image"
+                                    className="img-fluid rounded-circle"
+                                    alt={course.teacher?.full_name || "Instructor"}
+                                    style={{ width: "160px", height: "160px", objectFit: "cover" }}
                                   />
                                 </div>
-                                <div className="col-md-7">
-                                  {/* Card body */}
+                                <div className="col-md-9">
                                   <div className="card-body">
-                                    {/* Title */}
-                                    <h3 className="card-title mb-0">
-                                      {course.teacher.full_name}
-                                    </h3>
-                                    <p className="mb-2">{course.teacher.bio}</p>
-                                    {/* Social button */}
-                                    <ul className="list-inline mb-3">
-                                      <li className="list-inline-item me-3">
-                                        <a
-                                          href={course.teacher.twitter}
-                                          className="fs-5 text-twitter"
-                                        >
-                                          <i className="fab fa-twitter-square" />
-                                        </a>
-                                      </li>
-                                      <li className="list-inline-item me-3">
-                                        <a
-                                          href={course.teacher.facebook}
-                                          className="fs-5 text-facebook"
-                                        >
-                                          <i className="fab fa-facebook-square" />
-                                        </a>
-                                      </li>
-                                      <li className="list-inline-item me-3">
-                                        <a
-                                          href={course.teacher.linkedin}
-                                          className="fs-5 text-linkedin"
-                                        >
-                                          <i className="fab fa-linkedin" />
-                                        </a>
-                                      </li>
-                                    </ul>
+                                    <h3 className="card-title mb-1">{course.teacher?.full_name}</h3>
+                                    <p className="text-muted mb-2">Instructor</p>
+                                    {course.teacher?.about ? (
+                                      <p className="mb-0" style={{ whiteSpace: "pre-wrap" }}>{course.teacher.about}</p>
+                                    ) : (
+                                      <p className="mb-0 text-muted">This instructor has not added a biography yet.</p>
+                                    )}
                                   </div>
                                 </div>
                               </div>
                             </div>
-                            {/* Card END */}
-                            {/* Instructor info */}
-                            <h5 className="mb-3">About Instructor</h5>
-                            <p className="mb-3">{course.teacher.about}</p>
                           </div>
+
                           <div
                             className="tab-pane fade"
                             id="course-pills-4"
                             role="tabpanel"
                             aria-labelledby="course-pills-tab-4"
                           >
-                            {/* Review START */}
-                            <div className="row mb-1">
-                              <h5 className="mb-4">Our Student Reviews</h5>
+                            <div className="row mb-4">
+                              <div className="col-md-4 text-center border-end">
+                                <h1 className="display-4 mb-0">
+                                  {reviews.length ? Number(course.average_rating || 0).toFixed(1) : "New"}
+                                </h1>
+                                <Rater total={5} rating={Number(course.average_rating) || 0} interactive={false} />
+                                <p className="text-muted mb-0">
+                                  {reviews.length} review{reviews.length === 1 ? "" : "s"}
+                                </p>
+                              </div>
+                              <div className="col-md-8">
+                                {[5, 4, 3, 2, 1].map((star) => {
+                                  const n = reviews.filter((r) => Number(r.rating) === star).length;
+                                  const pct = reviews.length ? Math.round((n / reviews.length) * 100) : 0;
+                                  return (
+                                    <div className="d-flex align-items-center mb-1" key={star}>
+                                      <small className="me-2" style={{ width: "48px" }}>{star} star</small>
+                                      <div className="progress flex-grow-1" style={{ height: "8px" }}>
+                                        <div className="progress-bar bg-warning" style={{ width: `${pct}%` }} />
+                                      </div>
+                                      <small className="ms-2 text-muted" style={{ width: "36px" }}>{pct}%</small>
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
 
-                            <div className="row">
-                              <div className="d-md-flex my-4">
-                                <div className="avatar avatar-xl me-4 flex-shrink-0">
-                                  <img
-                                    className="avatar-img rounded-circle"
-                                    src="https://geeksui.codescandy.com/geeks/assets/images/avatar/avatar-1.jpg"
-                                    style={{
-                                      width: "50px",
-                                      height: "50px",
-                                      borderRadius: "50%",
-                                      objectFit: "cover",
-                                    }}
-                                    alt="avatar"
-                                  />
-                                </div>
-                                {/* Text */}
+                            {reviews.length === 0 && (
+                              <p className="text-muted">No reviews yet. Enrolled learners can leave the first one.</p>
+                            )}
+                            {reviews.map((r) => (
+                              <div className="d-flex mb-4" key={r.review_id || r.id}>
+                                <img
+                                  className="rounded-circle me-3"
+                                  src={r.profile?.image}
+                                  alt=""
+                                  style={{ width: "48px", height: "48px", objectFit: "cover" }}
+                                />
                                 <div>
-                                  <div className="d-sm-flex mt-1 mt-md-0 align-items-center">
-                                    <h5 className="me-3 mb-0">Sam Jay</h5>
-                                    {/* Review star */}
-                                    <ul className="list-inline mb-0">
-                                      <i className="fas fa-star text-warning" />
-                                      <i className="fas fa-star text-warning" />
-                                      <i className="fas fa-star text-warning" />
-                                      <i className="fas fa-star text-warning" />
-                                      <i className="far fa-star text-warning" />
-                                    </ul>
+                                  <div className="d-flex align-items-center flex-wrap">
+                                    <h6 className="me-3 mb-0">{r.profile?.full_name || r.student?.full_name || "Learner"}</h6>
+                                    <Rater total={5} rating={Number(r.rating) || 0} interactive={false} />
+                                    <small className="text-muted ms-3">{moment(r.created_at).format("D MMM YYYY")}</small>
                                   </div>
-                                  {/* Info */}
-                                  <p className="small mb-2">5 days ago</p>
-                                  <p className="mb-2">
-                                    Perceived end knowledge certainly day
-                                    sweetness why cordially. Ask a quick six
-                                    seven offer see among. Handsome met debating
-                                    sir dwelling age material. As style lived he
-                                    worse dried. Offered related so visitors we
-                                    private removed. Moderate do subjects to
-                                    distance.
-                                  </p>
-                                  {/* Like and dislike button */}
+                                  <p className="mb-0 mt-1">{r.review_text}</p>
                                 </div>
                               </div>
-                              {/* Comment children level 1 */}
-                              <hr />
-                              {/* Review item END */}
-                              {/* Review item START */}
-                              <div className="d-md-flex my-4">
-                                {/* Avatar */}
-                                <div className="avatar avatar-xl me-4 flex-shrink-0">
-                                  <img
-                                    className="avatar-img rounded-circle"
-                                    src="https://geeksui.codescandy.com/geeks/assets/images/avatar/avatar-1.jpg"
-                                    style={{
-                                      width: "50px",
-                                      height: "50px",
-                                      borderRadius: "50%",
-                                      objectFit: "cover",
-                                    }}
-                                    alt="avatar"
-                                  />
+                            ))}
+
+                            <hr />
+                            {userId ? (
+                              <form className="row g-3" onSubmit={submitReview}>
+                                <div className="col-12">
+                                  <h5 className="mb-0">{myReview ? "Update your review" : "Leave a review"}</h5>
+                                  <small className="text-muted">Reviews can be posted by enrolled learners.</small>
                                 </div>
-                                {/* Text */}
-                                <div>
-                                  <div className="d-sm-flex mt-1 mt-md-0 align-items-center">
-                                    <h5 className="me-3 mb-0">Benny Doggo</h5>
-                                    {/* Review star */}
-                                    <ul className="list-inline mb-0">
-                                      <li className="list-inline-item me-0">
-                                        <i className="fas fa-star text-warning" />
-                                      </li>
-                                      <li className="list-inline-item me-0">
-                                        <i className="fas fa-star text-warning" />
-                                      </li>
-                                      <li className="list-inline-item me-0">
-                                        <i className="fas fa-star text-warning" />
-                                      </li>
-                                      <li className="list-inline-item me-0">
-                                        <i className="fas fa-star text-warning" />
-                                      </li>
-                                      <li className="list-inline-item me-0">
-                                        <i className="far fa-star text-warning" />
-                                      </li>
-                                    </ul>
-                                  </div>
-                                  {/* Info */}
-                                  <p className="small mb-2">2 days ago</p>
-                                  <p className="mb-2">
-                                    Handsome met debating sir dwelling age
-                                    material. As style lived he worse dried.
-                                    Offered related so visitors we private
-                                    removed. Moderate do subjects to distance.
-                                  </p>
-                                </div>
-                              </div>
-                              {/* Review item END */}
-                              {/* Divider */}
-                              <hr />
-                            </div>
-                            {/* Student review END */}
-                            {/* Leave Review START */}
-                            <div className="mt-2">
-                              <h5 className="mb-4">Leave a Review</h5>
-                              <form className="row g-3">
-                                {/* Rating */}
-                                <div className="col-12 bg-light-input">
+                                <div className="col-md-4">
                                   <select
-                                    id="inputState2"
-                                    className="form-select js-choice"
+                                    className="form-select"
+                                    value={reviewForm.rating}
+                                    onChange={(e) => setReviewForm({ ...reviewForm, rating: e.target.value })}
                                   >
-                                    <option selected="">★★★★★ (5/5)</option>
-                                    <option>★★★★☆ (4/5)</option>
-                                    <option>★★★☆☆ (3/5)</option>
-                                    <option>★★☆☆☆ (2/5)</option>
-                                    <option>★☆☆☆☆ (1/5)</option>
+                                    {[5, 4, 3, 2, 1].map((v) => (
+                                      <option key={v} value={v}>
+                                        {"★".repeat(v)}{"☆".repeat(5 - v)} ({v}/5)
+                                      </option>
+                                    ))}
                                   </select>
                                 </div>
-                                {/* Message */}
-                                <div className="col-12 bg-light-input">
+                                <div className="col-12">
                                   <textarea
                                     className="form-control"
-                                    id="exampleFormControlTextarea1"
-                                    placeholder="Your review"
                                     rows={3}
-                                    defaultValue={""}
+                                    placeholder="What did you think of this course?"
+                                    value={reviewForm.text}
+                                    onChange={(e) => setReviewForm({ ...reviewForm, text: e.target.value })}
                                   />
                                 </div>
-                                {/* Button */}
                                 <div className="col-12">
-                                  <button
-                                    type="submit"
-                                    className="btn btn-primary mb-0"
-                                  >
-                                    Post Review
+                                  <button type="submit" className="btn btn-primary" disabled={reviewBusy || !reviewForm.text.trim()}>
+                                    {reviewBusy ? "Saving…" : myReview ? "Update review" : "Post review"}
                                   </button>
                                 </div>
                               </form>
-                            </div>
-                            {/* Leave Review END */}
-                          </div>
-                          {/* Content END */}
-                          {/* Content START */}
-                          <div
-                            className="tab-pane fade"
-                            id="course-pills-5"
-                            role="tabpanel"
-                            aria-labelledby="course-pills-tab-5"
-                          >
-                            {/* Title */}
-                            <h5 className="mb-3">Frequently Asked Questions</h5>
-                            {/* Accordion START */}
-                            <div
-                              className="accordion accordion-flush"
-                              id="accordionExample"
-                            >
-                              {/* Item */}
-                              <div className="accordion-item">
-                                <h2
-                                  className="accordion-header"
-                                  id="headingOne"
-                                >
-                                  <button
-                                    className="accordion-button collapsed"
-                                    type="button"
-                                    data-bs-toggle="collapse"
-                                    data-bs-target="#collapseOne"
-                                    aria-expanded="true"
-                                    aria-controls="collapseOne"
-                                  >
-                                    <span className="text-secondary fw-bold me-3">
-                                      01
-                                    </span>
-                                    <span className="h6 mb-0">
-                                      How Digital Marketing Work?
-                                    </span>
-                                  </button>
-                                </h2>
-                                <div
-                                  id="collapseOne"
-                                  className="accordion-collapse collapse show"
-                                  aria-labelledby="headingOne"
-                                  data-bs-parent="#accordionExample"
-                                >
-                                  <div className="accordion-body pt-0">
-                                    Comfort reached gay perhaps chamber his six
-                                    detract besides add. Moonlight newspaper up
-                                    its enjoyment agreeable depending. Timed
-                                    voice share led him to widen noisy young. At
-                                    weddings believed laughing although the
-                                    material does the exercise of. Up attempt
-                                    offered ye civilly so sitting to. She new
-                                    course gets living within Elinor joy. She
-                                    rapturous suffering concealed.
-                                  </div>
-                                </div>
-                              </div>
-                              {/* Item */}
-                              <div className="accordion-item">
-                                <h2
-                                  className="accordion-header"
-                                  id="headingTwo"
-                                >
-                                  <button
-                                    className="accordion-button collapsed"
-                                    type="button"
-                                    data-bs-toggle="collapse"
-                                    data-bs-target="#collapseTwo"
-                                    aria-expanded="false"
-                                    aria-controls="collapseTwo"
-                                  >
-                                    <span className="text-secondary fw-bold me-3">
-                                      02
-                                    </span>
-                                    <span className="h6 mb-0">
-                                      What is SEO?
-                                    </span>
-                                  </button>
-                                </h2>
-                                <div
-                                  id="collapseTwo"
-                                  className="accordion-collapse collapse"
-                                  aria-labelledby="headingTwo"
-                                  data-bs-parent="#accordionExample"
-                                >
-                                  <div className="accordion-body pt-0">
-                                    Pleasure and so read the was hope entire
-                                    first decided the so must have as on was
-                                    want up of I will rival in came this touched
-                                    got a physics to travelling so all
-                                    especially refinement monstrous desk they
-                                    was arrange the overall helplessly out of
-                                    particularly ill are purer.
-                                    <p className="mt-2">
-                                      Person she control of to beginnings view
-                                      looked eyes Than continues its and because
-                                      and given and shown creating curiously to
-                                      more in are man were smaller by we instead
-                                      the these sighed Avoid in the sufficient
-                                      me real man longer of his how her for
-                                      countries to brains warned notch important
-                                      Finds be to the of on the increased
-                                      explain noise of power deep asking
-                                      contribution this live of suppliers goals
-                                      bit separated poured sort several the was
-                                      organization the if relations go work
-                                      after mechanic But we've area wasn't
-                                      everything needs of and doctor where
-                                      would.
-                                    </p>
-                                    Go he prisoners And mountains in just
-                                    switching city steps Might rung line what Mr
-                                    Bulk; Was or between towards the have phase
-                                    were its world my samples are the was royal
-                                    he luxury the about trying And on he to my
-                                    enough is was the remember a although lead
-                                    in were through serving their assistant fame
-                                    day have for its after would cheek dull have
-                                    what in go feedback assignment Her of a any
-                                    help if the a of semantics is rational
-                                    overhauls following in from our hazardous
-                                    and used more he themselves the parents up
-                                    just regulatory.
-                                  </div>
-                                </div>
-                              </div>
-                              {/* Item */}
-                              <div className="accordion-item">
-                                <h2
-                                  className="accordion-header"
-                                  id="headingThree"
-                                >
-                                  <button
-                                    className="accordion-button collapsed"
-                                    type="button"
-                                    data-bs-toggle="collapse"
-                                    data-bs-target="#collapseThree"
-                                    aria-expanded="false"
-                                    aria-controls="collapseThree"
-                                  >
-                                    <span className="text-secondary fw-bold me-3">
-                                      03
-                                    </span>
-                                    <span className="h6 mb-0">
-                                      Who should join this course?
-                                    </span>
-                                  </button>
-                                </h2>
-                                <div
-                                  id="collapseThree"
-                                  className="accordion-collapse collapse"
-                                  aria-labelledby="headingThree"
-                                  data-bs-parent="#accordionExample"
-                                >
-                                  <div className="accordion-body pt-0">
-                                    Post no so what deal evil rent by real in.
-                                    But her ready least set lived spite solid.
-                                    September how men saw tolerably two behavior
-                                    arranging. She offices for highest and
-                                    replied one venture pasture. Applauded no
-                                    discovery in newspaper allowance am
-                                    northward. Frequently partiality possession
-                                    resolution at or appearance unaffected me.
-                                    Engaged its was the evident pleased husband.
-                                    Ye goodness felicity do disposal dwelling
-                                    no. First am plate jokes to began to cause a
-                                    scale.
-                                    <strong>
-                                      Subjects he prospect elegance followed no
-                                      overcame
-                                    </strong>
-                                    possible it on.
-                                  </div>
-                                </div>
-                              </div>
-                              {/* Item */}
-                              <div className="accordion-item">
-                                <h2
-                                  className="accordion-header"
-                                  id="headingFour"
-                                >
-                                  <button
-                                    className="accordion-button collapsed"
-                                    type="button"
-                                    data-bs-toggle="collapse"
-                                    data-bs-target="#collapseFour"
-                                    aria-expanded="false"
-                                    aria-controls="collapseFour"
-                                  >
-                                    <span className="text-secondary fw-bold me-3">
-                                      04
-                                    </span>
-                                    <span className="h6 mb-0">
-                                      What are the T&amp;C for this program?
-                                    </span>
-                                  </button>
-                                </h2>
-                                <div
-                                  id="collapseFour"
-                                  className="accordion-collapse collapse"
-                                  aria-labelledby="headingFour"
-                                  data-bs-parent="#accordionExample"
-                                >
-                                  <div className="accordion-body pt-0">
-                                    Night signs creeping yielding green Seasons
-                                    together man green fruitful make fish behold
-                                    earth unto you'll lights living moving sea
-                                    open for fish day multiply tree good female
-                                    god had fruitful of creature fill shall
-                                    don't day fourth lesser he the isn't let
-                                    multiply may Creeping earth under was You're
-                                    without which image stars in Own creeping
-                                    night of wherein Heaven years their he over
-                                    doesn't whose won't kind seasons light Won't
-                                    that fish him whose won't also it dominion
-                                    heaven fruitful Whales created And likeness
-                                    doesn't that Years without divided saying
-                                    morning creeping hath you'll seas cattle in
-                                    multiply under together in us said above dry
-                                    tree herb saw living darkness without have
-                                    won't for i behold meat brought winged
-                                    Moving living second beast Over fish place
-                                    beast image very him evening Thing they're
-                                    fruit together forth day Seed lights Land
-                                    creature together Multiply waters form
-                                    brought.
-                                  </div>
-                                </div>
-                              </div>
-                              {/* Item */}
-                              <div className="accordion-item">
-                                <h2
-                                  className="accordion-header"
-                                  id="headingFive"
-                                >
-                                  <button
-                                    className="accordion-button collapsed"
-                                    type="button"
-                                    data-bs-toggle="collapse"
-                                    data-bs-target="#collapseFive"
-                                    aria-expanded="false"
-                                    aria-controls="collapseFive"
-                                  >
-                                    <span className="text-secondary fw-bold me-3">
-                                      05
-                                    </span>
-                                    <span className="h6 mb-0">
-                                      What certificates will I be received for
-                                      this program?
-                                    </span>
-                                  </button>
-                                </h2>
-                                <div
-                                  id="collapseFive"
-                                  className="accordion-collapse collapse"
-                                  aria-labelledby="headingFive"
-                                  data-bs-parent="#accordionExample"
-                                >
-                                  <div className="accordion-body pt-0">
-                                    Smile spoke total few great had never their
-                                    too Amongst moments do in arrived at my
-                                    replied Fat weddings servants but man
-                                    believed prospect Companions understood is
-                                    as especially pianoforte connection
-                                    introduced Nay newspaper can sportsman are
-                                    admitting gentleman belonging his Is oppose
-                                    no he summer lovers twenty in Not his
-                                    difficulty boisterous surrounded bed Seems
-                                    folly if in given scale Sex contented
-                                    dependent conveying advantage.
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                            {/* Accordion END */}
-                          </div>
-                          {/* Content END */}
-                          {/* Content START */}
-                          <div
-                            className="tab-pane fade"
-                            id="course-pills-6"
-                            role="tabpanel"
-                            aria-labelledby="course-pills-tab-6"
-                          >
-                            {/* Review START */}
-                            <div className="row">
-                              <div className="col-12">
-                                <h5 className="mb-4">Group Chat & Q/A Forum</h5>
-
-                                {/* Comment item START */}
-                                <div className="border p-2 p-sm-4 rounded-3 mb-4">
-                                  <ul className="list-unstyled mb-0">
-                                    <li className="comment-item">
-                                      <div className="d-flex mb-3">
-                                        <div className="ms-2">
-                                          {/* Comment by */}
-                                          <div className="bg-light p-3 rounded">
-                                            <div className="d-flex justify-content-center">
-                                              <div className="me-2">
-                                                <h6 className="mb-1 lead fw-bold">
-                                                  <a
-                                                    href="#!"
-                                                    className="text-decoration-none text-dark"
-                                                  >
-                                                    <span className="text-secondary">
-                                                      By:
-                                                    </span>{" "}
-                                                    Frances Guerrero{" "}
-                                                  </a>
-                                                </h6>
-                                                <p className="mb-0">
-                                                  Removed demands expense
-                                                  account in outward tedious do.
-                                                  Particular waythoroughly
-                                                  unaffected projection ar
-                                                  waythoroughly unaffected
-                                                  projection?...
-                                                </p>
-                                                <p className="mt-4 fw-bold">
-                                                  16 Replies
-                                                </p>
-                                              </div>
-                                              <small>5hr</small>
-                                            </div>
-                                          </div>
-                                          {/* Comment react */}
-                                          <ul className="nav nav-divider py-2 small">
-                                            <li className="nav-item">
-                                              <a
-                                                className="btn btn-primary btn-sm"
-                                                href="#"
-                                              >
-                                                Join Conversation{" "}
-                                                <i className="fas fa-arrow-right"></i>
-                                              </a>
-                                            </li>
-                                          </ul>
-                                        </div>
-                                      </div>
-                                    </li>
-
-                                    <li className="comment-item">
-                                      <div className="d-flex mb-3">
-                                        <div className="ms-2">
-                                          {/* Comment by */}
-                                          <div className="bg-light p-3 rounded">
-                                            <div className="d-flex justify-content-center">
-                                              <div className="me-2">
-                                                <h6 className="mb-1 lead fw-bold">
-                                                  <a
-                                                    href="#!"
-                                                    className="text-decoration-none text-dark"
-                                                  >
-                                                    <span className="text-secondary">
-                                                      By:
-                                                    </span>{" "}
-                                                    Frances Guerrero{" "}
-                                                  </a>
-                                                </h6>
-                                                <p className="mb-0">
-                                                  Removed demands expense
-                                                  account in outward tedious do.
-                                                  Particular waythoroughly
-                                                  unaffected projection ar
-                                                  waythoroughly unaffected
-                                                  projection?...
-                                                </p>
-                                                <p className="mt-4 fw-bold">
-                                                  16 Replies
-                                                </p>
-                                              </div>
-                                              <small>5hr</small>
-                                            </div>
-                                          </div>
-                                          {/* Comment react */}
-                                          <ul className="nav nav-divider py-2 small">
-                                            <li className="nav-item">
-                                              <a
-                                                className="btn btn-primary btn-sm"
-                                                href="#"
-                                              >
-                                                Join Conversation{" "}
-                                                <i className="fas fa-arrow-right"></i>
-                                              </a>
-                                            </li>
-                                          </ul>
-                                        </div>
-                                      </div>
-                                    </li>
-                                  </ul>
-                                </div>
-                                {/* Chat Detail Page */}
-                                <div className="border p-2 p-sm-4 rounded-3">
-                                  <ul
-                                    className="list-unstyled mb-0"
-                                    style={{
-                                      overflowY: "scroll",
-                                      height: "500px",
-                                    }}
-                                  >
-                                    <li className="comment-item mb-3">
-                                      <div className="d-flex">
-                                        <div className="avatar avatar-sm flex-shrink-0">
-                                          <a href="#">
-                                            <img
-                                              className="avatar-img rounded-circle"
-                                              src="https://geeksui.codescandy.com/geeks/assets/images/avatar/avatar-3.jpg"
-                                              style={{
-                                                width: "40px",
-                                                height: "40px",
-                                                borderRadius: "50%",
-                                                objectFit: "cover",
-                                              }}
-                                              alt="womans image"
-                                            />
-                                          </a>
-                                        </div>
-                                        <div className="ms-2">
-                                          {/* Comment by */}
-                                          <div className="bg-light p-3 rounded w-100">
-                                            <div className="d-flex w-100 justify-content-center">
-                                              <div className="me-2 ">
-                                                <h6 className="mb-1 lead fw-bold">
-                                                  <a
-                                                    href="#!"
-                                                    className="text-decoration-none text-dark"
-                                                  >
-                                                    {" "}
-                                                    Louis Ferguson{" "}
-                                                  </a>
-                                                  <br />
-                                                  <span
-                                                    style={{
-                                                      fontSize: "12px",
-                                                      color: "gray",
-                                                    }}
-                                                  >
-                                                    5hrs Ago
-                                                  </span>
-                                                </h6>
-                                                <p className="mb-0 mt-3  ">
-                                                  Removed demands expense
-                                                  account
-                                                </p>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </li>
-
-                                    <li className="comment-item mb-3">
-                                      <div className="d-flex">
-                                        <div className="avatar avatar-sm flex-shrink-0">
-                                          <a href="#">
-                                            <img
-                                              className="avatar-img rounded-circle"
-                                              src="https://geeksui.codescandy.com/geeks/assets/images/avatar/avatar-3.jpg"
-                                              style={{
-                                                width: "40px",
-                                                height: "40px",
-                                                borderRadius: "50%",
-                                                objectFit: "cover",
-                                              }}
-                                              alt="womans image"
-                                            />
-                                          </a>
-                                        </div>
-                                        <div className="ms-2">
-                                          {/* Comment by */}
-                                          <div className="bg-light p-3 rounded w-100">
-                                            <div className="d-flex w-100 justify-content-center">
-                                              <div className="me-2 ">
-                                                <h6 className="mb-1 lead fw-bold">
-                                                  <a
-                                                    href="#!"
-                                                    className="text-decoration-none text-dark"
-                                                  >
-                                                    {" "}
-                                                    Louis Ferguson{" "}
-                                                  </a>
-                                                  <br />
-                                                  <span
-                                                    style={{
-                                                      fontSize: "12px",
-                                                      color: "gray",
-                                                    }}
-                                                  >
-                                                    5hrs Ago
-                                                  </span>
-                                                </h6>
-                                                <p className="mb-0 mt-3  ">
-                                                  Removed demands expense
-                                                  account from the debby
-                                                  building in a hall town tak
-                                                  with
-                                                </p>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </li>
-
-                                    <li className="comment-item mb-3">
-                                      <div className="d-flex">
-                                        <div className="avatar avatar-sm flex-shrink-0">
-                                          <a href="#">
-                                            <img
-                                              className="avatar-img rounded-circle"
-                                              src="https://geeksui.codescandy.com/geeks/assets/images/avatar/avatar-3.jpg"
-                                              style={{
-                                                width: "40px",
-                                                height: "40px",
-                                                borderRadius: "50%",
-                                                objectFit: "cover",
-                                              }}
-                                              alt="womans image"
-                                            />
-                                          </a>
-                                        </div>
-                                        <div className="ms-2">
-                                          {/* Comment by */}
-                                          <div className="bg-light p-3 rounded w-100">
-                                            <div className="d-flex w-100 justify-content-center">
-                                              <div className="me-2 ">
-                                                <h6 className="mb-1 lead fw-bold">
-                                                  <a
-                                                    href="#!"
-                                                    className="text-decoration-none text-dark"
-                                                  >
-                                                    {" "}
-                                                    Louis Ferguson{" "}
-                                                  </a>
-                                                  <br />
-                                                  <span
-                                                    style={{
-                                                      fontSize: "12px",
-                                                      color: "gray",
-                                                    }}
-                                                  >
-                                                    5hrs Ago
-                                                  </span>
-                                                </h6>
-                                                <p className="mb-0 mt-3  ">
-                                                  Removed demands expense
-                                                  account
-                                                </p>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </li>
-
-                                    <li className="comment-item mb-3">
-                                      <div className="d-flex">
-                                        <div className="avatar avatar-sm flex-shrink-0">
-                                          <a href="#">
-                                            <img
-                                              className="avatar-img rounded-circle"
-                                              src="https://geeksui.codescandy.com/geeks/assets/images/avatar/avatar-3.jpg"
-                                              style={{
-                                                width: "40px",
-                                                height: "40px",
-                                                borderRadius: "50%",
-                                                objectFit: "cover",
-                                              }}
-                                              alt="womans image"
-                                            />
-                                          </a>
-                                        </div>
-                                        <div className="ms-2">
-                                          {/* Comment by */}
-                                          <div className="bg-light p-3 rounded w-100">
-                                            <div className="d-flex w-100 justify-content-center">
-                                              <div className="me-2 ">
-                                                <h6 className="mb-1 lead fw-bold">
-                                                  <a
-                                                    href="#!"
-                                                    className="text-decoration-none text-dark"
-                                                  >
-                                                    {" "}
-                                                    Louis Ferguson{" "}
-                                                  </a>
-                                                  <br />
-                                                  <span
-                                                    style={{
-                                                      fontSize: "12px",
-                                                      color: "gray",
-                                                    }}
-                                                  >
-                                                    5hrs Ago
-                                                  </span>
-                                                </h6>
-                                                <p className="mb-0 mt-3  ">
-                                                  Removed demands expense
-                                                  account
-                                                </p>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </li>
-                                  </ul>
-
-                                  <form class="w-100 d-flex">
-                                    <textarea
-                                      class="one form-control pe-4 bg-light w-75"
-                                      id="autoheighttextarea"
-                                      rows="1"
-                                      placeholder="Write a message..."
-                                    ></textarea>
-                                    <button
-                                      class="btn btn-primary ms-2 mb-0 w-25"
-                                      type="button"
-                                    >
-                                      Post{" "}
-                                      <i className="fas fa-paper-plane"></i>
-                                    </button>
-                                  </form>
-                                </div>
-                              </div>
-                            </div>
+                            ) : (
+                              <p className="text-muted mb-0">
+                                <Link to={`/login/?next=/course-detail/${param.slug}/`}>Log in</Link> and enrol to leave a review.
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>
