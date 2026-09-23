@@ -22,11 +22,16 @@ function CourseDetail() {
   const [addToCartBtn, setAddToCartBtn] = useState("Add To Cart");
   const [enrolling, setEnrolling] = useState(false);
   const [relatedCourses, setRelatedCourses] = useState([]);
+  const param = useParams();
+  const navigate = useNavigate();
+
+  const country = GetCurrentAddress().country;
+  const userId = UserData()?.user_id;
+
   const [reviews, setReviews] = useState([]);
   const [reviewForm, setReviewForm] = useState({ rating: 5, text: "" });
   const [reviewBusy, setReviewBusy] = useState(false);
-  const currentUserId = UserData()?.user_id;
-  const myReview = reviews.find((r) => r.student?.id === currentUserId) || null;
+  const myReview = reviews.find((r) => r.student?.id === userId) || null;
 
   const fetchReviews = async () => {
     try {
@@ -66,11 +71,6 @@ function CourseDetail() {
   };
   const [cartCount, setCartCount] = useContext(CartContext);
 
-  const param = useParams();
-  const navigate = useNavigate();
-
-  const country = GetCurrentAddress().country;
-  const userId = UserData()?.user_id;
 
   const fetchCourse = () => {
     useAxios()
