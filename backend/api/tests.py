@@ -353,3 +353,22 @@ class ProfileAndRoleTests(APITestCase):
         created = User.objects.get(email='teacher@example.com')
         self.assertEqual(created.role, 'instructor')
 
+
+class PasswordStrengthTests(APITestCase):
+    """The API enforces the same rules the signup form shows"""
+
+    def register(self, password):
+        return self.client.post('/api/v1/user/register/', {
+            'full_name': 'Test Learner', 'email': 'strength@test.com',
+            'password': password, 'password2': password, 'role': 'student',
+        })
+
+    def test_short_or_simple_password_is_rejected(self):
+        for weak in ('short1!A', 'alllowercase123!', 'NoSymbolsHere123', 'NOLOWER123!'):
+            response = self.register(weak)
+            self.assertEqual(response.status_code, 400, weak)
+            self.assertIn('password', response.data)
+
+    def test_strong_password_is_accepted(self):
+        response = self.register('Correct-Horse-9!')
+        self.assertEqual(response.status_code, 201, response.data)
