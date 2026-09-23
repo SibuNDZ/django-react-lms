@@ -15,40 +15,25 @@ function BaseFooter() {
                 <span style={{ color: '#fff', fontWeight: 600, fontSize: '24px', marginLeft: '4px' }}>Research</span>
               </Link>
               <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', lineHeight: '1.7' }}>
-                Empowering the next generation of tech professionals with cutting-edge courses in
-                AI, Full Stack Development, and emerging technologies.
+                Data, analytics and AI programmes built from real delivery work and aligned to the
+                skills South African employers and public bodies are procuring.
               </p>
-              {/* Social Links */}
-              <div className="d-flex gap-3 mt-3">
-                <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer"
-                   className="text-white" style={{ fontSize: '20px', opacity: 0.7, transition: 'opacity 0.2s' }}>
-                  <i className="fab fa-linkedin"></i>
+              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px' }}>
+                <a href="https://www.dsnresearch.com" target="_blank" rel="noopener noreferrer" className="text-white">
+                  <i className="fas fa-globe me-2"></i>www.dsnresearch.com
                 </a>
-                <a href="https://twitter.com" target="_blank" rel="noopener noreferrer"
-                   className="text-white" style={{ fontSize: '20px', opacity: 0.7 }}>
-                  <i className="fab fa-twitter"></i>
-                </a>
-                <a href="https://github.com" target="_blank" rel="noopener noreferrer"
-                   className="text-white" style={{ fontSize: '20px', opacity: 0.7 }}>
-                  <i className="fab fa-github"></i>
-                </a>
-                <a href="https://youtube.com" target="_blank" rel="noopener noreferrer"
-                   className="text-white" style={{ fontSize: '20px', opacity: 0.7 }}>
-                  <i className="fab fa-youtube"></i>
-                </a>
-              </div>
+              </p>
             </div>
           </div>
 
-          {/* Quick Links */}
+          {/* Programmes */}
           <div className="col-lg-2 col-md-6 col-6 mb-4 mb-lg-0">
-            <h5>Learn</h5>
+            <h5>Programmes</h5>
             <ul>
-              <li><Link to="/search/?search=prompting">Prompt Engineering</Link></li>
-              <li><Link to="/search/?search=agentic">Agentic AI</Link></li>
-              <li><Link to="/search/?search=fullstack">Full Stack Dev</Link></li>
-              <li><Link to="/search/?search=python">Python</Link></li>
-              <li><Link to="/search/?search=react">React</Link></li>
+              <li><Link to="/course-detail/data-analytics-bi-foundation/">Data Analytics &amp; BI</Link></li>
+              <li><Link to="/course-detail/applied-data-science-machine-learning/">Applied Data Science</Link></li>
+              <li><Link to="/course-detail/full-stack-ai-mlops-engineering/">AI &amp; MLOps Engineering</Link></li>
+              <li><Link to="/search/">All programmes</Link></li>
             </ul>
           </div>
 
@@ -56,11 +41,9 @@ function BaseFooter() {
           <div className="col-lg-2 col-md-6 col-6 mb-4 mb-lg-0">
             <h5>Company</h5>
             <ul>
-              <li><Link to="/pages/about-us/">About Us</Link></li>
-              <li><Link to="/pages/contact-us/">Contact</Link></li>
+              <li><Link to="/about/">About us</Link></li>
+              <li><Link to="/contact/">Contact</Link></li>
               <li><Link to="/instructor/create-course/">Teach on DSN</Link></li>
-              <li><a href="#">Careers</a></li>
-              <li><a href="#">Blog</a></li>
             </ul>
           </div>
 
@@ -68,11 +51,10 @@ function BaseFooter() {
           <div className="col-lg-2 col-md-6 col-6 mb-4 mb-lg-0">
             <h5>Support</h5>
             <ul>
-              <li><a href="#">Help Center</a></li>
-              <li><a href="#">FAQ</a></li>
-              <li><a href="#">Terms of Service</a></li>
-              <li><a href="#">Privacy Policy</a></li>
-              <li><a href="#">Refund Policy</a></li>
+              <li><Link to="/help/">Help centre and FAQ</Link></li>
+              <li><Link to="/terms/">Terms of use</Link></li>
+              <li><Link to="/privacy/">Privacy notice</Link></li>
+              <li><Link to="/refunds/">Fees and refunds</Link></li>
             </ul>
           </div>
 
@@ -87,14 +69,14 @@ function BaseFooter() {
                 </a>
               </li>
               <li>
-                <a href="tel:+27123456789">
+                <a href="tel:+27662963239">
                   <i className="fas fa-phone me-2"></i>
-                  +27 12 345 6789
+                  +27 66 296 3239
                 </a>
               </li>
               <li style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px' }}>
                 <i className="fas fa-map-marker-alt me-2"></i>
-                South Africa
+                East London, South Africa
               </li>
             </ul>
           </div>
@@ -105,14 +87,14 @@ function BaseFooter() {
           <div className="row align-items-center">
             <div className="col-md-6 text-center text-md-start mb-3 mb-md-0">
               <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}>
-                © {currentYear} DSN Research. All rights reserved.
+                © {currentYear} DSN Research Consulting (Pty) Ltd. Registration 2015/191048/07.
               </span>
             </div>
             <div className="col-md-6 text-center text-md-end">
               <div className="d-flex justify-content-center justify-content-md-end gap-4">
-                <a href="#" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px' }}>Privacy</a>
-                <a href="#" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px' }}>Terms</a>
-                <a href="#" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px' }}>Cookies</a>
+                <Link to="/privacy/" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px' }}>Privacy</Link>
+                <Link to="/terms/" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px' }}>Terms</Link>
+                <Link to="/privacy/#cookies" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px' }}>Cookies</Link>
               </div>
             </div>
           </div>

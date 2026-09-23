@@ -1,7 +1,7 @@
 import { useEffect, useState, useContext } from "react";
 import BaseHeader from "../partials/BaseHeader";
 import BaseFooter from "../partials/BaseFooter";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import Rater from "react-rater";
 import "react-rater/lib/react-rater.css";
 
@@ -16,16 +16,25 @@ import { addCourseToCart } from "../../utils/lmsApi";
 function Search() {
   const [courses, setCourses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
   const [cartCount, setCartCount] = useContext(CartContext);
 
   const country = GetCurrentAddress().country;
   const userId = UserData()?.user_id;
   const cartId = CartId();
 
+  const [params] = useSearchParams();
+  const urlSearch = params.get("search") || "";
+  const urlCategory = params.get("category") || "";
+
   const fetchCourse = async () => {
     setIsLoading(true);
     try {
-      const res = await useAxios().get(`/courses/`);
+      const query = new URLSearchParams();
+      if (urlSearch) query.set("search", urlSearch);
+      if (urlCategory) query.set("category", urlCategory);
+      query.set("page_size", "50");
+      const res = await useAxios().get(`/courses/?${query.toString()}`);
       // Handle both paginated response and plain array
       const courseData = res.data?.results || res.data || [];
       setCourses(Array.isArray(courseData) ? courseData : []);
@@ -39,7 +48,9 @@ function Search() {
 
   useEffect(() => {
     fetchCourse();
-  }, []);
+    setSearchQuery(urlSearch);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlSearch, urlCategory]);
 
   const addToCart = async (courseId) => {
     try {
@@ -54,9 +65,7 @@ function Search() {
     }
   };
 
-  // Search Feature
-  const [searchQuery, setSearchQuery] = useState("");
-  console.log(searchQuery);
+  // Search Feature (typing filters the loaded list client-side)
 
   const handleSeach = (e) => {
     const query = e.target.value.toLowerCase();
@@ -83,7 +92,11 @@ function Search() {
             <div className="col-12">
               <div className="mb-6">
                 <h2 className="mb-1 h1">
-                  Showing Results for "{searchQuery || "No Search Query"}"
+                  {urlCategory
+                    ? `Programmes in ${urlCategory.replace(/-/g, " ")}`
+                    : searchQuery
+                    ? `Showing results for "${searchQuery}"`
+                    : "All programmes"}
                 </h2>
               </div>
             </div>

@@ -80,21 +80,27 @@ function Index() {
       });
   };
 
-  // Tech categories data
-  const categories = [
-    { icon: "fas fa-robot", title: "Prompt Engineering", count: "50+ Courses", color: "#ff7a59", search: "prompting" },
-    { icon: "fas fa-brain", title: "Agentic AI", count: "30+ Courses", color: "#0f3d38", search: "agentic" },
-    { icon: "fas fa-shield-alt", title: "Cybersecurity", count: "70+ Courses", color: "#1f2937", search: "security" },
-    { icon: "fas fa-cloud", title: "Cloud & DevOps", count: "65+ Courses", color: "#2563eb", search: "cloud" },
-    { icon: "fas fa-database", title: "Data Analytics", count: "90+ Courses", color: "#0ea5e9", search: "analytics" },
-    { icon: "fas fa-layer-group", title: "Full Stack Dev", count: "100+ Courses", color: "#10b981", search: "fullstack" },
-    { icon: "fab fa-python", title: "Python", count: "80+ Courses", color: "#3776ab", search: "python" },
-    { icon: "fab fa-react", title: "React", count: "60+ Courses", color: "#61dafb", search: "react" },
-    { icon: "fas fa-briefcase", title: "Product & PM", count: "45+ Courses", color: "#7c3aed", search: "product" },
-    { icon: "fas fa-users", title: "Leadership", count: "40+ Courses", color: "#f59e0b", search: "leadership" },
-    { icon: "fas fa-scale-balanced", title: "Compliance", count: "35+ Courses", color: "#475569", search: "compliance" },
-    { icon: "fas fa-pen-ruler", title: "UX & Design", count: "55+ Courses", color: "#ec4899", search: "ux" },
-  ];
+  // Real categories from the API; icon and colour chosen by keyword
+  const [categories, setCategories] = useState([]);
+  useEffect(() => {
+    useAxios()
+      .get(`categories/`)
+      .then((res) => {
+        const items = res.data?.results || res.data || [];
+        setCategories(items.filter((c) => (c.course_count ?? 0) > 0));
+      })
+      .catch(() => setCategories([]));
+  }, []);
+
+  const categoryStyle = (name = "") => {
+    const n = name.toLowerCase();
+    if (/ai|intelligence|machine/.test(n)) return { icon: "fas fa-robot", color: "#7c3aed" };
+    if (/data|analytic|bi\b/.test(n)) return { icon: "fas fa-database", color: "#0ea5e9" };
+    if (/cloud|devops|mlops|engineer/.test(n)) return { icon: "fas fa-cloud", color: "#2563eb" };
+    if (/python|program|code|develop/.test(n)) return { icon: "fas fa-code", color: "#10b981" };
+    if (/security|cyber/.test(n)) return { icon: "fas fa-shield-alt", color: "#1f2937" };
+    return { icon: "fas fa-graduation-cap", color: "#5624d0" };
+  };
 
   return (
     <>
@@ -259,31 +265,39 @@ function Index() {
       )}
 
       {/* Categories Section */}
+      {categories.length > 0 && (
       <section className="categories-section">
         <div className="container">
           <div className="section-header text-center">
-            <h2 className="section-title">Top Tech Categories</h2>
+            <h2 className="section-title">Programme categories</h2>
             <p className="section-subtitle">
-              Master the skills that matter most in today's tech industry
+              Choose a track and see every programme in it
             </p>
           </div>
           <div className="row g-4 mt-3">
-            {categories.map((cat, index) => (
-              <div className="col-6 col-md-4 col-lg-3 col-xl-2" key={index}>
-                <Link to={`/search/?search=${cat.search}`} className="text-decoration-none">
-                  <div className="category-card h-100">
-                    <div className="icon" style={{ color: cat.color }}>
-                      <i className={cat.icon}></i>
+            {categories.map((cat) => {
+              const style = categoryStyle(cat.name);
+              const count = cat.course_count ?? 0;
+              return (
+                <div className="col-6 col-md-4 col-lg-3" key={cat.id}>
+                  <Link to={`/search/?category=${cat.slug}`} className="text-decoration-none">
+                    <div className="category-card h-100">
+                      <div className="icon" style={{ color: style.color }}>
+                        <i className={style.icon}></i>
+                      </div>
+                      <h5>{cat.name}</h5>
+                      <span>
+                        {count} programme{count === 1 ? "" : "s"}
+                      </span>
                     </div>
-                    <h5>{cat.title}</h5>
-                    <span>{cat.count}</span>
-                  </div>
-                </Link>
-              </div>
-            ))}
+                  </Link>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
+      )}
 
       {/* Popular Courses Section */}
       <section className="py-5">

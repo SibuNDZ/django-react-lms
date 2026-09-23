@@ -7,6 +7,8 @@ import BaseHeader from "../partials/BaseHeader";
 import BaseFooter from "../partials/BaseFooter";
 
 import useAxios from "../../utils/useAxios";
+import Toast from "../plugin/Toast";
+import Swal from "sweetalert2";
 import UserData from "../plugin/UserData";
 import { Link } from "react-router-dom";
 
@@ -31,11 +33,32 @@ function Courses() {
       fetchCourseData();
     }, []);
 
-    const handleDelete = (courseId) => {
-      useAxios()
-        .delete(`instructor/courses/${courseId}/`)
-        .then(() => fetchCourseData())
-        .catch((err) => console.log(err));
+    const handleDelete = async (courseId, title) => {
+      const result = await Swal.fire({
+        title: "Delete this course?",
+        html: `<strong>${title}</strong><br/>All of its modules, lessons, quizzes, enrolments and learner results will be permanently removed. This cannot be undone.`,
+        icon: "warning",
+        input: "text",
+        inputPlaceholder: "Type DELETE to confirm",
+        showCancelButton: true,
+        confirmButtonText: "Delete course",
+        confirmButtonColor: "#dc3545",
+        preConfirm: (value) => {
+          if (value !== "DELETE") {
+            Swal.showValidationMessage("Type DELETE in capitals to confirm");
+            return false;
+          }
+          return true;
+        },
+      });
+      if (!result.isConfirmed) return;
+      try {
+        await useAxios().delete(`instructor/courses/${courseId}/`);
+        Toast().fire({ icon: "success", title: "Course deleted" });
+        fetchCourseData();
+      } catch (err) {
+        Toast().fire({ icon: "error", title: err?.response?.data?.message || "Could not delete course" });
+      }
     };
 
     const handleSearch = (event) => {
@@ -183,7 +206,7 @@ function Courses() {
                             </Link>
                             <button
                               className="btn btn-danger btn-sm mt-3 me-1"
-                              onClick={() => handleDelete(c.course_id)}
+                              onClick={() => handleDelete(c.course_id, c.title)}
                             >
                               <i className="fas fa-trash"></i>
                             </button>

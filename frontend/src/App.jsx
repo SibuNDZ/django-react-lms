@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Route, Routes, BrowserRouter } from "react-router-dom";
+import { Route, Routes, BrowserRouter, Navigate } from "react-router-dom";
 
 import { CartContext, ProfileContext } from "./views/plugin/Context";
 import CartId from "./views/plugin/CartId";
@@ -27,6 +27,12 @@ import Wishlist from "./views/student/Wishlist";
 import StudentProfile from "./views/student/Profile";
 import useAxios from "./utils/useAxios";
 import ErrorBoundary from "./layouts/ErrorBoundary";
+import About from "./views/pages/About";
+import Contact from "./views/pages/Contact";
+import Help from "./views/pages/Help";
+import Terms from "./views/pages/Terms";
+import Privacy from "./views/pages/Privacy";
+import Refunds from "./views/pages/Refunds";
 import StudentChangePassword from "./views/student/ChangePassword";
 import Dashboard from "./views/instructor/Dashboard";
 import Courses from "./views/instructor/Courses";
@@ -104,6 +110,16 @@ function App() {
                 }
               />
               <Route path="/search/" element={<Search />} />
+
+              {/* Information pages */}
+              <Route path="/about/" element={<About />} />
+              <Route path="/contact/" element={<Contact />} />
+              <Route path="/help/" element={<Help />} />
+              <Route path="/terms/" element={<Terms />} />
+              <Route path="/privacy/" element={<Privacy />} />
+              <Route path="/refunds/" element={<Refunds />} />
+              <Route path="/pages/about-us/" element={<Navigate to="/about/" replace />} />
+              <Route path="/pages/contact-us/" element={<Navigate to="/contact/" replace />} />
 
               {/* Student Routes */}
               <Route
